@@ -1,137 +1,216 @@
-import { View, TextInput, Button, Text, Alert } from "react-native";
+import React, { useState, useContext } from "react";
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  Alert,
+  ScrollView,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../config/firebase";
 import axios from "axios";
-import { useState, useContext } from "react";
 import { AuthContext } from "../context/AuthContext";
 
 export default function SignupScreen({ route }) {
-
   const { role } = route.params;
-
-  const { login } = useContext(AuthContext); // 🔥 IMPORTANT
+  const { login } = useContext(AuthContext);
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const signup = async () => {
-    try {
+  if (!name || !email || !password || !confirmPassword) {
+    Alert.alert("Error", "All fields are required");
+    return;
+  }
 
-      if (!name || !email || !password || !confirmPassword) {
-        Alert.alert("Error", "All fields are required");
-        return;
+  if (password !== confirmPassword) {
+    Alert.alert("Error", "Passwords do not match");
+    return;
+  }
+
+  try {
+    setLoading(true);
+
+    const res = await createUserWithEmailAndPassword(
+      auth,
+      email,
+      password
+    );
+
+    const token = await res.user.getIdToken(true);
+
+    await axios.post(
+      "https://elderbackend-production.up.railway.app/auth/register",
+      {
+        token,
+        role,
+        name,
       }
+    );
 
-      if (password !== confirmPassword) {
-        Alert.alert("Error", "Passwords do not match");
-        return;
-      }
-
-      // Create Firebase user
-      const res = await createUserWithEmailAndPassword(
-        auth,
-        email,
-        password
-      );
-
-      // Get token
-      const token = await res.user.getIdToken(true);
-
-      // Register in backend
-      const backendRes = await axios.post(
-        "https://elderbackend-production.up.railway.app/auth/register",
+    // 🔥 SUCCESS MESSAGE + REDIRECT TO LOGIN
+    Alert.alert(
+      "Registration Successful 🎉",
+      "Your account has been created successfully. Please login to continue.",
+      [
         {
-          token,
-          role,
-          name,
-        }
-      );
+          text: "OK",
+          onPress: () => navigation.reset({
+            index: 0,
+            routes: [{ name: "Login" }],
+          }),
+        },
+      ]
+    );
 
-      // Refresh firebase user
-      await res.user.reload();
+  } catch (err) {
+    console.log("FULL BACKEND ERROR:", err.response?.data || err);
+    Alert.alert("Signup Failed", "Something went wrong. Try again.");
+  } finally {
+    setLoading(false);
+  }
+};
 
-      // 🔥 AUTO LOGIN (THIS FIXES REDIRECT)
-      login(backendRes.data.user);
-
-    } catch (err) {
-
-      console.log("SIGNUP ERROR:", err);
-
-      if (err.code === "auth/email-already-in-use") {
-        Alert.alert("Error", "Email already registered");
-      } else {
-        Alert.alert("Error", "Signup failed. Try again.");
-      }
-    }
-  };
 
   return (
-    <View style={{ padding: 20 }}>
+    <SafeAreaView style={styles.container}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
+      >
+        <ScrollView contentContainerStyle={styles.content}>
+          <Text style={styles.title}>
+            {role === "ngo" ? "Register Organization" : "Create Account"}
+          </Text>
 
-      <Text style={{ fontSize: 18, marginBottom: 10 }}>
-        {role === "ngo" ? "Organization Name" : "Full Name"}
-      </Text>
+          <Text style={styles.subtitle}>
+            {role === "ngo"
+              ? "Register your organization with Elder Connect"
+              : "Join Elder Connect today"}
+          </Text>
 
-      <TextInput
-        placeholder={role === "ngo" ? "Organization Name" : "Full Name"}
-        value={name}
-        onChangeText={setName}
-        style={{
-          borderWidth: 1,
-          padding: 10,
-          marginBottom: 10,
-          borderRadius: 5,
-        }}
-      />
+          <View style={styles.card}>
+            <TextInput
+              placeholder={role === "ngo" ? "Organization Name" : "Full Name"}
+              value={name}
+              onChangeText={setName}
+              style={styles.input}
+              placeholderTextColor="#94A3B8"
+            />
 
-      <TextInput
-        placeholder="Email"
-        value={email}
-        onChangeText={setEmail}
-        autoCapitalize="none"
-        keyboardType="email-address"
-        style={{
-          borderWidth: 1,
-          padding: 10,
-          marginBottom: 10,
-          borderRadius: 5,
-        }}
-      />
+            <TextInput
+              placeholder="Email Address"
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              style={styles.input}
+              placeholderTextColor="#94A3B8"
+            />
 
-      <TextInput
-        placeholder="Password"
-        secureTextEntry
-        value={password}
-        onChangeText={setPassword}
-        style={{
-          borderWidth: 1,
-          padding: 10,
-          marginBottom: 10,
-          borderRadius: 5,
-        }}
-      />
+            <TextInput
+              placeholder="Password"
+              secureTextEntry
+              value={password}
+              onChangeText={setPassword}
+              style={styles.input}
+              placeholderTextColor="#94A3B8"
+            />
 
-      <TextInput
-        placeholder="Confirm Password"
-        secureTextEntry
-        value={confirmPassword}
-        onChangeText={setConfirmPassword}
-        style={{
-          borderWidth: 1,
-          padding: 10,
-          marginBottom: 20,
-          borderRadius: 5,
-        }}
-      />
+            <TextInput
+              placeholder="Confirm Password"
+              secureTextEntry
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              style={styles.input}
+              placeholderTextColor="#94A3B8"
+            />
+          </View>
 
-      <Button title="Signup" onPress={signup} />
-
-    </View>
+          <TouchableOpacity
+            style={styles.signupButton}
+            onPress={signup}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#FFF" />
+            ) : (
+              <Text style={styles.signupText}>Signup</Text>
+            )}
+          </TouchableOpacity>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#F8FAFC",
+  },
 
-//https://elderbackend-production.up.railway.app
-//https://elderbackend-production.up.railway.app
+  content: {
+    padding: 24,
+    justifyContent: "center",
+  },
+
+  title: {
+    fontSize: 30,
+    fontWeight: "bold",
+    textAlign: "center",
+    marginBottom: 10,
+    color: "#1E293B",
+  },
+
+  subtitle: {
+    fontSize: 18,
+    textAlign: "center",
+    marginBottom: 30,
+    color: "#64748B",
+  },
+
+  card: {
+    backgroundColor: "#FFF",
+    padding: 20,
+    borderRadius: 18,
+    marginBottom: 30,
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+  },
+
+  input: {
+    backgroundColor: "#F1F5F9",
+    padding: 18,
+    borderRadius: 14,
+    fontSize: 18,
+    marginBottom: 20,
+    color: "#1E293B",
+  },
+
+  signupButton: {
+    backgroundColor: "#2563EB",
+    paddingVertical: 20,
+    borderRadius: 18,
+    alignItems: "center",
+  },
+
+  signupText: {
+    color: "#FFF",
+    fontSize: 20,
+    fontWeight: "600",
+  },
+});
