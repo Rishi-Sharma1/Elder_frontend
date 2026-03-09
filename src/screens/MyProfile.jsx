@@ -1,35 +1,54 @@
-import { View, Text, TextInput, Button, Image, TouchableOpacity, ScrollView, SafeAreaView, ActivityIndicator} from "react-native";
+import {
+  View,
+  Text,
+  TextInput,
+  Image,
+  TouchableOpacity,
+  ScrollView,
+  ActivityIndicator,
+  StyleSheet,
+} from "react-native";
 import { useContext, useState, useEffect } from "react";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { AuthContext } from "../context/AuthContext";
 import axios from "axios";
 import * as ImagePicker from "expo-image-picker";
 import { auth } from "../config/firebase";
 import { useNavigation } from "@react-navigation/native";
-import { StyleSheet } from "react-native";
+
+const colors = {
+  bg: "#0F172A",
+  card: "#1E293B",
+  border: "#334155",
+  primary: "#3B82F6",
+  success: "#16A34A",
+  danger: "#DC2626",
+  warning: "#F59E0B",
+  text: "#F1F5F9",
+  muted: "#94A3B8",
+};
 
 export default function MyProfile() {
-
-  const { user, login, logout, loading } = useContext(AuthContext);
+  const { user, login, loading } = useContext(AuthContext);
 
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
   const [gender, setGender] = useState("");
   const [emergencyContact, setEmergencyContact] = useState("");
-
   const [idImage, setIdImage] = useState(null);
   const [uploading, setUploading] = useState(false);
 
   const navigation = useNavigation();
-  useEffect(() => {
-  if (!user && !loading) {
-    navigation.reset({
-      index: 0,
-      routes: [{ name: "Login" }],
-    });
-  }
-}, [user, loading]);
 
-  // 🔥 Sync when user loads
+  useEffect(() => {
+    if (!user && !loading) {
+      navigation.reset({
+        index: 0,
+        routes: [{ name: "Login" }],
+      });
+    }
+  }, [user, loading]);
+
   useEffect(() => {
     if (user) {
       setPhone(user.phone || "");
@@ -39,13 +58,9 @@ export default function MyProfile() {
     }
   }, [user]);
 
-  // ✅ Prevent crash
-  if (loading) return null;
-  if (!user) return null;
+  if (loading || !user) return null;
 
-  // Pick Image
   const pickImage = async () => {
-
     const permission =
       await ImagePicker.requestMediaLibraryPermissionsAsync();
 
@@ -66,9 +81,7 @@ export default function MyProfile() {
     }
   };
 
-  // Upload to Cloudinary
   const uploadImage = async () => {
-
     if (!idImage) return null;
 
     const data = new FormData();
@@ -84,30 +97,20 @@ export default function MyProfile() {
 
     const res = await fetch(
       "https://api.cloudinary.com/v1_1/rishisharma/image/upload",
-      {
-        method: "POST",
-        body: data,
-      }
+      { method: "POST", body: data }
     );
 
     const json = await res.json();
-
     return json.secure_url;
   };
 
-  // Save Profile
   const saveProfile = async () => {
     try {
-
       setUploading(true);
-
       const token = await auth.currentUser.getIdToken(true);
 
       let imageUrl = null;
-
-      if (idImage) {
-        imageUrl = await uploadImage();
-      }
+      if (idImage) imageUrl = await uploadImage();
 
       const res = await axios.put(
         "https://elderbackend-production.up.railway.app/auth/update-profile",
@@ -119,265 +122,240 @@ export default function MyProfile() {
           idFrontUrl: imageUrl,
         },
         {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         }
       );
 
-      alert("Profile updated");
-
-      // 🔥 Update context
       login(res.data);
-
+      alert("Profile updated successfully");
     } catch (err) {
-
-      console.log("PROFILE ERROR:", err);
       alert("Failed to update profile");
-
     } finally {
       setUploading(false);
     }
   };
 
+  const status = user?.verification?.status || "not_verified";
+
+  const getStatusColor = () => {
+    if (status === "approved") return colors.success;
+    if (status === "rejected") return colors.danger;
+    return colors.warning;
+  };
+
   return (
-  <SafeAreaView style={styles.container}>
-    <ScrollView contentContainerStyle={styles.content}>
-      
-      {/* Header */}
-      <Text style={styles.header}>My Profile</Text>
+    <SafeAreaView style={styles.container}>
+      <ScrollView contentContainerStyle={styles.content}>
+        <Text style={styles.header}>My Profile</Text>
 
-      {/* Basic Info Card */}
-      <View style={styles.card}>
-        <Text style={styles.label}>Name</Text>
-        <Text style={styles.value}>{user?.name}</Text>
+        {/* Basic Info */}
+        <View style={styles.card}>
+          <Text style={styles.label}>Name</Text>
+          <Text style={styles.value}>{user?.name}</Text>
 
-        <Text style={styles.label}>Email</Text>
-        <Text style={styles.value}>{user?.email}</Text>
+          <Text style={styles.label}>Email</Text>
+          <Text style={styles.value}>{user?.email}</Text>
 
-        <Text style={styles.label}>Role</Text>
-        <Text style={styles.value}>{user?.role}</Text>
-      </View>
+          <Text style={styles.label}>Role</Text>
+          <Text style={styles.value}>{user?.role}</Text>
+        </View>
 
-      {/* Editable Info */}
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Personal Details</Text>
+        {/* Editable Section */}
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Personal Details</Text>
 
-        <TextInput
-          placeholder="Phone Number"
-          value={phone}
-          onChangeText={setPhone}
-          style={styles.input}
-          placeholderTextColor="#94A3B8"
-        />
-
-        <TextInput
-          placeholder="Address"
-          value={address}
-          onChangeText={setAddress}
-          style={styles.input}
-          placeholderTextColor="#94A3B8"
-        />
-
-        <TextInput
-          placeholder="Gender"
-          value={gender}
-          onChangeText={setGender}
-          style={styles.input}
-          placeholderTextColor="#94A3B8"
-        />
-
-        {user?.role === "elder" && (
           <TextInput
-            placeholder="Emergency Contact"
-            value={emergencyContact}
-            onChangeText={setEmergencyContact}
+            placeholder="Phone"
+            value={phone}
+            onChangeText={setPhone}
             style={styles.input}
-            placeholderTextColor="#94A3B8"
+            placeholderTextColor={colors.muted}
           />
-        )}
-      </View>
 
-      {/* Upload Section */}
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Government ID</Text>
+          <TextInput
+            placeholder="Address"
+            value={address}
+            onChangeText={setAddress}
+            style={styles.input}
+            placeholderTextColor={colors.muted}
+          />
 
-        <TouchableOpacity style={styles.uploadButton} onPress={pickImage}>
-          <Text style={styles.uploadText}>Upload ID</Text>
+          <TextInput
+            placeholder="Gender"
+            value={gender}
+            onChangeText={setGender}
+            style={styles.input}
+            placeholderTextColor={colors.muted}
+          />
+
+          {user?.role === "elder" && (
+            <TextInput
+              placeholder="Emergency Contact"
+              value={emergencyContact}
+              onChangeText={setEmergencyContact}
+              style={styles.input}
+              placeholderTextColor={colors.muted}
+            />
+          )}
+        </View>
+
+        {/* Upload ID */}
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Government ID</Text>
+
+          <TouchableOpacity style={styles.uploadButton} onPress={pickImage}>
+            <Text style={styles.uploadText}>Upload ID</Text>
+          </TouchableOpacity>
+
+          {idImage && (
+            <Image
+              source={{ uri: idImage }}
+              style={styles.imagePreview}
+            />
+          )}
+        </View>
+
+        {/* Save Button */}
+        <TouchableOpacity
+          style={styles.saveButton}
+          onPress={saveProfile}
+          disabled={uploading}
+        >
+          {uploading ? (
+            <ActivityIndicator color="#FFF" />
+          ) : (
+            <Text style={styles.saveText}>Save Profile</Text>
+          )}
         </TouchableOpacity>
 
-        {idImage && (
-          <Image
-            source={{ uri: idImage }}
-            style={styles.imagePreview}
-          />
-        )}
-      </View>
+        {/* Verification Status */}
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Verification Status</Text>
 
-      {/* Save Button */}
-      <TouchableOpacity
-        style={styles.saveButton}
-        onPress={saveProfile}
-        disabled={uploading}
-      >
-        {uploading ? (
-          <ActivityIndicator color="#FFF" />
-        ) : (
-          <Text style={styles.saveText}>Save Profile</Text>
-        )}
-      </TouchableOpacity>
+          <View
+            style={[
+              styles.statusBadge,
+              { backgroundColor: getStatusColor() },
+            ]}
+          >
+            <Text style={styles.statusText}>
+              {status.replace("_", " ").toUpperCase()}
+            </Text>
+          </View>
 
-      {/* Verification Status */}
-      <View style={styles.statusCard}>
-        <Text style={styles.statusTitle}>Verification Status</Text>
-
-        <Text
-          style={[
-            styles.statusBadge,
-            user?.verification?.status === "approved"
-              ? styles.approved
-              : user?.verification?.status === "rejected"
-              ? styles.rejected
-              : styles.pending,
-          ]}
-        >
-          {user?.verification?.status || "Not Uploaded"}
-        </Text>
-
-        {user?.verification?.status === "rejected" && (
-          <Text style={styles.rejectionText}>
-            Reason: {user?.verification?.rejectionReason}
-          </Text>
-        )}
-      </View>
-    </ScrollView>
-  </SafeAreaView>
-);
+          {status === "rejected" && (
+            <Text style={styles.rejectionText}>
+              {user?.verification?.rejectionReason}
+            </Text>
+          )}
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: colors.bg,
   },
+
   content: {
     padding: 24,
   },
 
   header: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: "bold",
+    color: colors.text,
     marginBottom: 20,
-    color: "#1E293B",
   },
 
   card: {
-    backgroundColor: "#FFF",
+    backgroundColor: colors.card,
     padding: 20,
     borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
     marginBottom: 20,
-    elevation: 4,
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 3 },
   },
 
   sectionTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "600",
-    marginBottom: 15,
-    color: "#334155",
+    marginBottom: 14,
+    color: colors.text,
   },
 
   label: {
-    fontSize: 16,
-    color: "#64748B",
+    color: colors.muted,
     marginTop: 8,
   },
 
   value: {
-    fontSize: 18,
+    color: colors.text,
     fontWeight: "600",
-    color: "#1E293B",
+    marginBottom: 10,
   },
 
   input: {
-    backgroundColor: "#F1F5F9",
-    padding: 16,
+    backgroundColor: "#0B1220",
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 14,
     borderRadius: 12,
-    fontSize: 18,
-    marginBottom: 15,
-    color: "#1E293B",
+    fontSize: 15,
+    marginBottom: 12,
+    color: colors.text,
   },
 
   uploadButton: {
-    backgroundColor: "#2563EB",
-    paddingVertical: 16,
-    borderRadius: 14,
+    backgroundColor: colors.primary,
+    paddingVertical: 14,
+    borderRadius: 12,
     alignItems: "center",
   },
 
   uploadText: {
     color: "#FFF",
-    fontSize: 18,
     fontWeight: "600",
   },
 
   imagePreview: {
     width: "100%",
     height: 200,
-    borderRadius: 14,
-    marginTop: 15,
+    borderRadius: 12,
+    marginTop: 14,
   },
 
   saveButton: {
-    backgroundColor: "#16A34A",
-    paddingVertical: 18,
-    borderRadius: 16,
+    backgroundColor: colors.success,
+    paddingVertical: 16,
+    borderRadius: 14,
     alignItems: "center",
-    marginBottom: 25,
+    marginBottom: 20,
   },
 
   saveText: {
     color: "#FFF",
-    fontSize: 20,
     fontWeight: "600",
-  },
-
-  statusCard: {
-    backgroundColor: "#FFF",
-    padding: 20,
-    borderRadius: 16,
-    marginBottom: 40,
-  },
-
-  statusTitle: {
-    fontSize: 18,
-    marginBottom: 10,
-    color: "#475569",
+    fontSize: 16,
   },
 
   statusBadge: {
-    fontSize: 18,
-    fontWeight: "bold",
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    alignSelf: "flex-start",
   },
 
-  approved: {
-    color: "#16A34A",
-  },
-
-  rejected: {
-    color: "#DC2626",
-  },
-
-  pending: {
-    color: "#F59E0B",
+  statusText: {
+    color: "#FFF",
+    fontWeight: "600",
   },
 
   rejectionText: {
-    marginTop: 8,
-    color: "#DC2626",
-    fontSize: 16,
+    color: colors.danger,
+    marginTop: 10,
   },
 });

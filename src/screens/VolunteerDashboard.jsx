@@ -2,236 +2,331 @@ import { useContext, useEffect, useState } from "react";
 import {
   View,
   Text,
-  TouchableOpacity,
-  StyleSheet,
   ScrollView,
-  StatusBar,
+  StyleSheet,
+  TouchableOpacity,
+  Platform,
   ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AuthContext } from "../context/AuthContext";
-import Greeting from "../components/Greeting";
 import axios from "axios";
 import { auth } from "../config/firebase";
-import { useFocusEffect } from "@react-navigation/native";
-import { useCallback } from "react";
 
+const colors = {
+  bg: "#0F172A",
+  sidebar: "#0B1220",
+  card: "#1E293B",
+  border: "#334155",
+  primary: "#3B82F6",
+  green: "#16A34A",
+  text: "#F1F5F9",
+  muted: "#94A3B8",
+};
 
 export default function VolunteerDashboard({ navigation }) {
   const user = useContext(AuthContext);
 
-  const [availableCount, setAvailableCount] = useState(0);
-  const [completedCount, setCompletedCount] = useState(0);
+  const [available, setAvailable] = useState([]);
+  const [completed, setCompleted] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const status = user?.verification?.status || "not_uploaded";
-
-  const statusStyle =
-    status === "approved"
-      ? styles.approved
-      : status === "rejected"
-      ? styles.rejected
-      : styles.pending;
-
-  useFocusEffect(
-  useCallback(() => {
-    const fetchStats = async () => {
+  useEffect(() => {
+    const fetchDashboard = async () => {
       try {
-        setLoading(true);
-
         const token = await auth.currentUser.getIdToken();
 
         const availableRes = await axios.get(
           "https://elderbackend-production.up.railway.app/volunteer/requests",
-          { headers: { Authorization: `Bearer ${token}` } }
+          { headers: { Authorization: `Bearer ${token}` } },
         );
 
-        const myTasksRes = await axios.get(
+        const tasksRes = await axios.get(
           "https://elderbackend-production.up.railway.app/volunteer/tasks",
-          { headers: { Authorization: `Bearer ${token}` } }
+          { headers: { Authorization: `Bearer ${token}` } },
         );
 
-        setAvailableCount(availableRes.data.length);
+        setAvailable(availableRes.data);
 
-        const completed = myTasksRes.data.filter(
-          (task) => task.status?.toLowerCase() === "completed"
-        );
+        const completedTasks = tasksRes.data
+          .filter((t) => t.status?.toLowerCase() === "completed")
+          .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
 
-        setCompletedCount(completed.length);
-
+        setCompleted(completedTasks);
       } catch (err) {
-        console.log("DASHBOARD STATS ERROR:", err.response?.data || err);
+        console.log("DASHBOARD ERROR:", err.response?.data || err);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchStats();
-  }, [])
-);
-
+    fetchDashboard();
+  }, []);
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" />
+      <View style={styles.layout}>
+        {/* Sidebar (Web Only) */}
+        {Platform.OS === "web" && (
+          <View style={styles.sidebar}>
+            <View style={styles.profileSection}>
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>
+                  {user?.name?.charAt(0)?.toUpperCase()}
+                </Text>
+              </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
-        <Greeting />
-
-        {/* Verification */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Verification Status</Text>
-          <Text style={[styles.cardValue, statusStyle]}>
-            {status.replace("_", " ").toUpperCase()}
-          </Text>
-        </View>
-
-        {/* Stats Section */}
-        <Text style={styles.sectionTitle}>Dashboard Overview</Text>
-
-        {loading ? (
-          <ActivityIndicator size="large" color="#2563EB" />
-        ) : (
-          <View style={styles.statsRow}>
-            <View style={styles.statCard}>
-              <Text style={styles.statNumber}>
-                {availableCount}
+              <Text style={styles.profileName}>
+                {user?.name || "Volunteer"}
               </Text>
-              <Text style={styles.statLabel}>
-                Available Tasks
+
+              <Text style={styles.profileRole}>
+                {user?.role?.toUpperCase() || "VOLUNTEER"}
               </Text>
             </View>
 
-            <View style={[styles.statCard, styles.completedCard]}>
-              <Text style={styles.statNumber}>
-                {completedCount}
-              </Text>
-              <Text style={styles.statLabel}>
-                Completed Tasks
-              </Text>
-            </View>
+            <SidebarItem label="Dashboard" active />
+            <SidebarItem
+              label="Requests"
+              onPress={() => navigation.navigate("AvailableRequests")}
+            />
+            <SidebarItem
+              label="My Tasks"
+              onPress={() => navigation.navigate("MyTasks")}
+            />
           </View>
         )}
 
-        {/* Navigation Buttons */}
-        <TouchableOpacity
-          style={styles.primaryButton}
-          onPress={() => navigation.navigate("AvailableRequests")}
-        >
-          <Text style={styles.primaryText}>
-            📋 View Available Requests
+        {/* Main Content */}
+        <ScrollView style={styles.content}>
+          <Text style={styles.heading}>Dashboard</Text>
+          <Text style={styles.subheading}>
+            Manage your activities and performance
           </Text>
-        </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.secondaryButton}
-          onPress={() => navigation.navigate("MyTasks")}
-        >
-          <Text style={styles.secondaryText}>
-            ✅ My Tasks
-          </Text>
-        </TouchableOpacity>
-      </ScrollView>
+          {loading ? (
+            <ActivityIndicator size="large" color={colors.primary} />
+          ) : (
+            <>
+              {/* Stats */}
+              <View style={styles.statsRow}>
+                <StatCard
+                  title="Available Tasks"
+                  value={available.length}
+                  color={colors.primary}
+                />
+                <StatCard
+                  title="Completed Tasks"
+                  value={completed.length}
+                  color={colors.green}
+                />
+              </View>
+
+              {/* Quick Actions */}
+              <SectionTitle title="Quick Actions" />
+
+              {available.slice(0, 3).map((item) => (
+                <TouchableOpacity
+                  key={item._id}
+                  style={styles.quickCard}
+                  onPress={() => navigation.navigate("AvailableRequests")}
+                >
+                  <Text style={styles.quickTitle}>
+                    {item.type?.toUpperCase()}
+                  </Text>
+                  <Text style={styles.quickDesc}>{item.description}</Text>
+                </TouchableOpacity>
+              ))}
+
+              {available.length === 0 && (
+                <Text style={{ color: colors.muted }}>
+                  No available requests.
+                </Text>
+              )}
+
+              {/* Recent Activity */}
+              <SectionTitle title="Recent Activity" />
+
+              {completed.slice(0, 3).map((item) => (
+                <View key={item._id} style={styles.activityCard}>
+                  <Text style={styles.activityTitle}>
+                    {item.type?.toUpperCase()}
+                  </Text>
+                  <Text style={styles.activityDesc}>{item.description}</Text>
+                  <Text style={styles.activityStatus}>Completed</Text>
+                </View>
+              ))}
+
+              {completed.length === 0 && (
+                <Text style={{ color: colors.muted }}>
+                  No completed tasks yet.
+                </Text>
+              )}
+            </>
+          )}
+        </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }
 
+const SidebarItem = ({ label, active, onPress }) => (
+  <TouchableOpacity
+    style={[styles.sidebarItem, active && { backgroundColor: colors.card }]}
+    onPress={onPress}
+  >
+    <Text style={styles.sidebarText}>{label}</Text>
+  </TouchableOpacity>
+);
+
+const StatCard = ({ title, value, color }) => (
+  <View style={[styles.statCard, { borderColor: color }]}>
+    <Text style={styles.statNumber}>{value}</Text>
+    <Text style={styles.statTitle}>{title}</Text>
+  </View>
+);
+
+const SectionTitle = ({ title }) => (
+  <Text style={styles.sectionTitle}>{title}</Text>
+);
+
 const styles = StyleSheet.create({
-  container: {
+  container: { flex: 1, backgroundColor: colors.bg },
+
+  layout: {
+    flexDirection: Platform.OS === "web" ? "row" : "column",
     flex: 1,
-    backgroundColor: "#F8FAFC",
   },
 
-  content: {
-    padding: 24,
+  sidebar: {
+    width: 250,
+    backgroundColor: colors.sidebar,
+    padding: 20,
   },
 
-  card: {
-    backgroundColor: "#FFF",
-    padding: 22,
-    borderRadius: 18,
-    marginTop: 20,
-    marginBottom: 25,
-    elevation: 5,
+  profileSection: {
+    marginBottom: 30,
+    alignItems: "center",
   },
 
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#64748B",
+  avatar: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: colors.border,
     marginBottom: 10,
   },
 
-  cardValue: {
-    fontSize: 22,
+  profileName: {
+    color: colors.text,
     fontWeight: "bold",
   },
 
-  approved: { color: "#16A34A" },
-  rejected: { color: "#DC2626" },
-  pending: { color: "#F59E0B" },
+  profileRole: {
+    color: colors.muted,
+    fontSize: 13,
+  },
 
-  sectionTitle: {
-    fontSize: 22,
+  sidebarItem: {
+    padding: 12,
+    borderRadius: 10,
+    marginBottom: 8,
+  },
+
+  sidebarText: {
+    color: colors.text,
+  },
+
+  content: {
+    flex: 1,
+    padding: 24,
+  },
+
+  heading: {
+    fontSize: 28,
     fontWeight: "bold",
-    marginBottom: 15,
-    color: "#1E293B",
+    color: colors.text,
+  },
+
+  subheading: {
+    color: colors.muted,
+    marginBottom: 30,
   },
 
   statsRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
+    flexDirection: Platform.OS === "web" ? "row" : "column",
+    gap: 20,
     marginBottom: 30,
   },
 
   statCard: {
-    backgroundColor: "#DBEAFE",
-    flex: 0.48,
-    padding: 20,
+    flex: 1,
+    backgroundColor: colors.card,
+    padding: 30,
     borderRadius: 16,
+    borderWidth: 1,
     alignItems: "center",
-  },
-
-  completedCard: {
-    backgroundColor: "#DCFCE7",
   },
 
   statNumber: {
-    fontSize: 32,
+    fontSize: 48,
     fontWeight: "bold",
-    color: "#1E293B",
+    color: colors.text,
   },
 
-  statLabel: {
-    fontSize: 16,
+  statTitle: {
+    marginTop: 8,
+    color: colors.muted,
+  },
+
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: "600",
+    color: colors.text,
+    marginBottom: 15,
+  },
+
+  quickCard: {
+    backgroundColor: colors.card,
+    padding: 18,
+    borderRadius: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+
+  quickTitle: {
+    color: colors.primary,
+    fontWeight: "bold",
+    marginBottom: 5,
+  },
+
+  quickDesc: {
+    color: colors.muted,
+  },
+
+  activityCard: {
+    backgroundColor: colors.card,
+    padding: 18,
+    borderRadius: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+
+  activityTitle: {
+    color: colors.green,
+    fontWeight: "bold",
+    marginBottom: 5,
+  },
+
+  activityDesc: {
+    color: colors.muted,
+  },
+
+  activityStatus: {
     marginTop: 6,
-    color: "#334155",
-  },
-
-  primaryButton: {
-    backgroundColor: "#2563EB",
-    paddingVertical: 20,
-    borderRadius: 16,
-    alignItems: "center",
-    marginBottom: 20,
-  },
-
-  primaryText: {
-    color: "#FFF",
-    fontSize: 20,
-    fontWeight: "600",
-  },
-
-  secondaryButton: {
-    backgroundColor: "#16A34A",
-    paddingVertical: 20,
-    borderRadius: 16,
-    alignItems: "center",
-  },
-
-  secondaryText: {
-    color: "#FFF",
-    fontSize: 20,
-    fontWeight: "600",
+    color: colors.green,
+    fontSize: 12,
   },
 });

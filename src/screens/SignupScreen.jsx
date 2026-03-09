@@ -1,4 +1,4 @@
-import React, { useState, useContext } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -15,11 +15,18 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../config/firebase";
 import axios from "axios";
-import { AuthContext } from "../context/AuthContext";
 
-export default function SignupScreen({ route }) {
+const colors = {
+  bg: "#0F172A",
+  card: "#1E293B",
+  border: "#334155",
+  primary: "#3B82F6",
+  text: "#F1F5F9",
+  muted: "#94A3B8",
+};
+
+export default function SignupScreen({ route, navigation }) {
   const { role } = route.params;
-  const { login } = useContext(AuthContext);
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -28,59 +35,53 @@ export default function SignupScreen({ route }) {
   const [loading, setLoading] = useState(false);
 
   const signup = async () => {
-  if (!name || !email || !password || !confirmPassword) {
-    Alert.alert("Error", "All fields are required");
-    return;
-  }
+    if (!name || !email || !password || !confirmPassword) {
+      Alert.alert("Error", "All fields are required");
+      return;
+    }
 
-  if (password !== confirmPassword) {
-    Alert.alert("Error", "Passwords do not match");
-    return;
-  }
+    if (password !== confirmPassword) {
+      Alert.alert("Error", "Passwords do not match");
+      return;
+    }
 
-  try {
-    setLoading(true);
+    try {
+      setLoading(true);
 
-    const res = await createUserWithEmailAndPassword(
-      auth,
-      email,
-      password
-    );
+      const res = await createUserWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
 
-    const token = await res.user.getIdToken(true);
+      const token = await res.user.getIdToken(true);
 
-    await axios.post(
-      "https://elderbackend-production.up.railway.app/auth/register",
-      {
-        token,
-        role,
-        name,
-      }
-    );
+      await axios.post(
+        "https://elderbackend-production.up.railway.app/auth/register",
+        { token, role, name }
+      );
 
-    // 🔥 SUCCESS MESSAGE + REDIRECT TO LOGIN
-    Alert.alert(
-      "Registration Successful 🎉",
-      "Your account has been created successfully. Please login to continue.",
-      [
-        {
-          text: "OK",
-          onPress: () => navigation.reset({
-            index: 0,
-            routes: [{ name: "Login" }],
-          }),
-        },
-      ]
-    );
-
-  } catch (err) {
-    console.log("FULL BACKEND ERROR:", err.response?.data || err);
-    Alert.alert("Signup Failed", "Something went wrong. Try again.");
-  } finally {
-    setLoading(false);
-  }
-};
-
+      Alert.alert(
+        "Registration Successful 🎉",
+        "Your account has been created successfully. Please login to continue.",
+        [
+          {
+            text: "OK",
+            onPress: () =>
+              navigation.reset({
+                index: 0,
+                routes: [{ name: "Login" }],
+              }),
+          },
+        ]
+      );
+    } catch (err) {
+      console.log("FULL BACKEND ERROR:", err.response?.data || err);
+      Alert.alert("Signup Failed", "Something went wrong. Try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -90,22 +91,28 @@ export default function SignupScreen({ route }) {
       >
         <ScrollView contentContainerStyle={styles.content}>
           <Text style={styles.title}>
-            {role === "ngo" ? "Register Organization" : "Create Account"}
+            {role === "ngo"
+              ? "Register Organization"
+              : "Create Account"}
           </Text>
 
           <Text style={styles.subtitle}>
             {role === "ngo"
-              ? "Register your organization with Elder Connect"
+              ? "Join Elder Connect as an NGO"
               : "Join Elder Connect today"}
           </Text>
 
           <View style={styles.card}>
             <TextInput
-              placeholder={role === "ngo" ? "Organization Name" : "Full Name"}
+              placeholder={
+                role === "ngo"
+                  ? "Organization Name"
+                  : "Full Name"
+              }
               value={name}
               onChangeText={setName}
               style={styles.input}
-              placeholderTextColor="#94A3B8"
+              placeholderTextColor={colors.muted}
             />
 
             <TextInput
@@ -115,7 +122,7 @@ export default function SignupScreen({ route }) {
               autoCapitalize="none"
               keyboardType="email-address"
               style={styles.input}
-              placeholderTextColor="#94A3B8"
+              placeholderTextColor={colors.muted}
             />
 
             <TextInput
@@ -124,7 +131,7 @@ export default function SignupScreen({ route }) {
               value={password}
               onChangeText={setPassword}
               style={styles.input}
-              placeholderTextColor="#94A3B8"
+              placeholderTextColor={colors.muted}
             />
 
             <TextInput
@@ -133,7 +140,7 @@ export default function SignupScreen({ route }) {
               value={confirmPassword}
               onChangeText={setConfirmPassword}
               style={styles.input}
-              placeholderTextColor="#94A3B8"
+              placeholderTextColor={colors.muted}
             />
           </View>
 
@@ -145,7 +152,9 @@ export default function SignupScreen({ route }) {
             {loading ? (
               <ActivityIndicator color="#FFF" />
             ) : (
-              <Text style={styles.signupText}>Signup</Text>
+              <Text style={styles.signupText}>
+                Create Account
+              </Text>
             )}
           </TouchableOpacity>
         </ScrollView>
@@ -157,60 +166,59 @@ export default function SignupScreen({ route }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: colors.bg,
   },
 
   content: {
-    padding: 24,
+    padding: 30,
     justifyContent: "center",
   },
 
   title: {
-    fontSize: 30,
+    fontSize: 32,
     fontWeight: "bold",
     textAlign: "center",
-    marginBottom: 10,
-    color: "#1E293B",
+    marginBottom: 8,
+    color: colors.text,
   },
 
   subtitle: {
-    fontSize: 18,
+    fontSize: 15,
     textAlign: "center",
     marginBottom: 30,
-    color: "#64748B",
+    color: colors.muted,
   },
 
   card: {
-    backgroundColor: "#FFF",
-    padding: 20,
-    borderRadius: 18,
+    backgroundColor: colors.card,
+    padding: 25,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
     marginBottom: 30,
-    elevation: 4,
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 3 },
   },
 
   input: {
-    backgroundColor: "#F1F5F9",
-    padding: 18,
+    backgroundColor: "#0F172A",
     borderRadius: 14,
-    fontSize: 18,
-    marginBottom: 20,
-    color: "#1E293B",
+    padding: 16,
+    fontSize: 16,
+    marginBottom: 18,
+    color: colors.text,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
 
   signupButton: {
-    backgroundColor: "#2563EB",
-    paddingVertical: 20,
-    borderRadius: 18,
+    backgroundColor: colors.primary,
+    paddingVertical: 18,
+    borderRadius: 16,
     alignItems: "center",
   },
 
   signupText: {
     color: "#FFF",
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "600",
   },
 });

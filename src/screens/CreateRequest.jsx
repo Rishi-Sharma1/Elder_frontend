@@ -15,6 +15,16 @@ import axios from "axios";
 import { auth } from "../config/firebase";
 import { Picker } from "@react-native-picker/picker";
 
+const colors = {
+  bg: "#0F172A",
+  card: "#1E293B",
+  border: "#334155",
+  primary: "#3B82F6",
+  danger: "#DC2626",
+  text: "#F1F5F9",
+  muted: "#94A3B8",
+};
+
 export default function CreateRequest({ navigation }) {
   const [type, setType] = useState("");
   const [description, setDescription] = useState("");
@@ -22,11 +32,9 @@ export default function CreateRequest({ navigation }) {
 
   const submit = async () => {
     if (!type || !description) {
-      if (Platform.OS === "web") {
-        alert("Please fill all fields");
-      } else {
-        Alert.alert("Error", "Please fill all fields");
-      }
+      Platform.OS === "web"
+        ? alert("Please fill all fields")
+        : Alert.alert("Error", "Please fill all fields");
       return;
     }
 
@@ -47,22 +55,16 @@ export default function CreateRequest({ navigation }) {
         }
       );
 
-      if (Platform.OS === "web") {
-        alert("Request submitted successfully");
-        navigation.goBack();
-      } else {
-        Alert.alert("Success", "Your request has been submitted successfully", [
-          { text: "OK", onPress: () => navigation.goBack() },
-        ]);
-      }
-    } catch (err) {
-      console.error("CREATE REQUEST ERROR:", err);
+      Platform.OS === "web"
+        ? alert("Request submitted successfully")
+        : Alert.alert("Success", "Request submitted successfully");
 
-      if (Platform.OS === "web") {
-        alert("Failed to submit request");
-      } else {
-        Alert.alert("Error", "Failed to submit request");
-      }
+      navigation.goBack();
+    } catch (err) {
+      console.log("CREATE REQUEST ERROR:", err);
+      Platform.OS === "web"
+        ? alert("Failed to submit request")
+        : Alert.alert("Error", "Failed to submit request");
     } finally {
       setLoading(false);
     }
@@ -71,16 +73,20 @@ export default function CreateRequest({ navigation }) {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.header}>Create Help Request</Text>
+        <Text style={styles.header}>
+          Create Help Request
+        </Text>
 
-        {/* Card */}
         <View style={styles.card}>
-          <Text style={styles.label}>Select Request Type</Text>
+          <Text style={styles.label}>
+            Select Request Type
+          </Text>
 
           <View style={styles.pickerContainer}>
             <Picker
               selectedValue={type}
-              onValueChange={(itemValue) => setType(itemValue)}
+              onValueChange={(value) => setType(value)}
+              dropdownIconColor={colors.text}
               style={styles.picker}
             >
               <Picker.Item label="Select Type" value="" />
@@ -90,20 +96,20 @@ export default function CreateRequest({ navigation }) {
             </Picker>
           </View>
 
-          <Text style={styles.label}>Describe Your Need</Text>
+          <Text style={styles.label}>
+            Describe Your Need
+          </Text>
 
           <TextInput
             placeholder="Explain what you need..."
+            placeholderTextColor={colors.muted}
             value={description}
             onChangeText={setDescription}
             style={styles.textArea}
             multiline
-            numberOfLines={4}
-            placeholderTextColor="#94A3B8"
           />
         </View>
 
-        {/* Submit Button */}
         <TouchableOpacity
           style={[
             styles.submitButton,
@@ -130,72 +136,75 @@ export default function CreateRequest({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: colors.bg,
   },
+
   content: {
-    padding: 24,
+    padding: 30,
   },
 
   header: {
     fontSize: 28,
     fontWeight: "bold",
-    marginBottom: 20,
-    color: "#1E293B",
+    color: colors.text,
+    marginBottom: 25,
   },
 
   card: {
-    backgroundColor: "#FFF",
-    padding: 20,
-    borderRadius: 16,
+    backgroundColor: colors.card,
+    padding: 22,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.border,
     marginBottom: 30,
-    elevation: 4,
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 3 },
   },
 
   label: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "600",
+    color: colors.text,
     marginBottom: 10,
-    color: "#334155",
   },
 
   pickerContainer: {
-    backgroundColor: "#F1F5F9",
+    backgroundColor: "#0F172A",
     borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
     marginBottom: 20,
   },
 
   picker: {
+    color: "#000",
     height: 55,
   },
 
   textArea: {
-    backgroundColor: "#F1F5F9",
-    borderRadius: 12,
+    backgroundColor: "#0F172A",
+    borderRadius: 14,
     padding: 16,
-    fontSize: 18,
-    textAlignVertical: "top",
+    fontSize: 16,
+    color: "#020000",
+    borderWidth: 1,
+    borderColor: colors.border,
     minHeight: 120,
-    color: "#1E293B",
+    textAlignVertical: "top",
   },
 
   submitButton: {
-    backgroundColor: "#2563EB",
+    backgroundColor: colors.primary,
     paddingVertical: 18,
     borderRadius: 16,
     alignItems: "center",
   },
 
   emergencyButton: {
-    backgroundColor: "#DC2626",
+    backgroundColor: colors.danger,
   },
 
   submitText: {
     color: "#FFF",
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "600",
   },
 });

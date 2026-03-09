@@ -3,15 +3,23 @@ import {
   View,
   Text,
   FlatList,
-  TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  SafeAreaView,
+  TouchableOpacity,
 } from "react-native";
-import { SafeAreaView as Safe } from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-safe-area-context";
 import axios from "axios";
 import { auth } from "../config/firebase";
 import { useFocusEffect } from "@react-navigation/native";
+
+const colors = {
+  bg: "#0F172A",
+  card: "#1E293B",
+  border: "#334155",
+  primary: "#3B82F6",
+  text: "#F1F5F9",
+  muted: "#94A3B8",
+};
 
 export default function NGORequests({ navigation }) {
   const [requests, setRequests] = useState([]);
@@ -19,8 +27,6 @@ export default function NGORequests({ navigation }) {
 
   const fetchRequests = async () => {
     try {
-      setLoading(true);
-
       const token = await auth.currentUser.getIdToken();
 
       const res = await axios.get(
@@ -44,53 +50,44 @@ export default function NGORequests({ navigation }) {
 
   if (loading) {
     return (
-      <Safe style={styles.center}>
-        <ActivityIndicator size="large" color="#2563EB" />
-      </Safe>
+      <SafeAreaView style={styles.center}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </SafeAreaView>
     );
   }
 
   if (requests.length === 0) {
     return (
-      <Safe style={styles.center}>
+      <SafeAreaView style={styles.center}>
         <Text style={styles.emptyText}>
           No requests available.
         </Text>
-      </Safe>
+      </SafeAreaView>
     );
   }
 
   return (
-    <Safe style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <FlatList
         data={requests}
         keyExtractor={(item) => item._id}
-        contentContainerStyle={{ padding: 20 }}
-        renderItem={({ item }) => {
-          const statusStyle =
-            item.status === "completed"
-              ? styles.completed
-              : item.status === "assigned"
-              ? styles.assigned
-              : styles.pending;
+        contentContainerStyle={{ padding: 24 }}
+        renderItem={({ item }) => (
+          <View style={styles.card}>
+            <Text style={styles.type}>
+              {item.type?.toUpperCase()}
+            </Text>
 
-          return (
-            <View style={styles.card}>
-              <Text style={styles.type}>
-                {item.type.toUpperCase()}
-              </Text>
+            <Text style={styles.description}>
+              {item.description}
+            </Text>
 
-              <Text style={styles.description}>
-                {item.description}
-              </Text>
+            <Text style={styles.info}>
+              👤 {item.elder?.name || item.elder?.email}
+            </Text>
 
-              <Text style={styles.info}>
-                👤 {item.elder?.name || item.elder?.email || "N/A"}
-              </Text>
-
-              <Text style={[styles.status, statusStyle]}>
-                Status: {item.status.toUpperCase()}
-              </Text>
+            <View style={styles.statusRow}>
+              <StatusBadge status={item.status} />
 
               {item.status === "pending" && (
                 <TouchableOpacity
@@ -107,74 +104,94 @@ export default function NGORequests({ navigation }) {
                 </TouchableOpacity>
               )}
             </View>
-          );
-        }}
+          </View>
+        )}
       />
-    </Safe>
+    </SafeAreaView>
   );
 }
+
+const StatusBadge = ({ status }) => {
+  const lower = status?.toLowerCase();
+
+  let backgroundColor = colors.card;
+
+  if (lower === "completed") backgroundColor = "#16A34A";
+  else if (lower === "assigned") backgroundColor = "#F59E0B";
+  else if (lower === "pending") backgroundColor = colors.primary;
+
+  return (
+    <View style={[styles.statusBadge, { backgroundColor }]}>
+      <Text style={styles.statusText}>
+        {status?.toUpperCase()}
+      </Text>
+    </View>
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: colors.bg,
   },
 
   card: {
-    backgroundColor: "#FFF",
+    backgroundColor: colors.card,
     padding: 20,
-    borderRadius: 18,
-    marginBottom: 15,
-    elevation: 5,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: 16,
   },
 
   type: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "bold",
-    marginBottom: 8,
-    color: "#1E293B",
+    marginBottom: 6,
+    color: colors.text,
   },
 
   description: {
-    fontSize: 18,
+    fontSize: 15,
     marginBottom: 10,
-    color: "#475569",
+    color: colors.muted,
   },
 
   info: {
-    fontSize: 16,
-    marginBottom: 8,
-    color: "#334155",
+    fontSize: 14,
+    marginBottom: 10,
+    color: colors.muted,
   },
 
-  status: {
-    fontSize: 16,
+  statusRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 10,
+  },
+
+  statusBadge: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+  },
+
+  statusText: {
+    color: "#FFF",
+    fontSize: 12,
     fontWeight: "600",
-    marginBottom: 12,
-  },
-
-  pending: {
-    color: "#F59E0B",
-  },
-
-  assigned: {
-    color: "#2563EB",
-  },
-
-  completed: {
-    color: "#16A34A",
   },
 
   assignButton: {
-    backgroundColor: "#2563EB",
-    paddingVertical: 16,
-    borderRadius: 14,
-    alignItems: "center",
+    backgroundColor: colors.primary,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 10,
   },
 
   assignText: {
     color: "#FFF",
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: "600",
   },
 
@@ -182,11 +199,11 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#F8FAFC",
+    backgroundColor: colors.bg,
   },
 
   emptyText: {
-    fontSize: 20,
-    color: "#64748B",
+    fontSize: 18,
+    color: colors.muted,
   },
 });

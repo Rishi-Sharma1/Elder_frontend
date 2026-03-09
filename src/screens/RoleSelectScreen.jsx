@@ -4,9 +4,20 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
+  Platform,
 } from "react-native";
-import { SafeAreaView as Safe } from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-safe-area-context";
+
+const colors = {
+  bg: "#0F172A",
+  card: "#1E293B",
+  border: "#334155",
+  text: "#F1F5F9",
+  muted: "#94A3B8",
+  blue: "#3B82F6",
+  green: "#16A34A",
+  yellow: "#F59E0B",
+};
 
 export default function RoleSelectScreen({ navigation }) {
   const selectRole = (role) => {
@@ -14,7 +25,7 @@ export default function RoleSelectScreen({ navigation }) {
   };
 
   return (
-    <Safe style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <View style={styles.content}>
         <Text style={styles.title}>Choose Your Role</Text>
         <Text style={styles.subtitle}>
@@ -23,10 +34,12 @@ export default function RoleSelectScreen({ navigation }) {
 
         {/* Elder */}
         <TouchableOpacity
-          style={[styles.card, styles.elder]}
+          style={[styles.card, { borderColor: colors.blue }]}
           onPress={() => selectRole("elder")}
+          activeOpacity={0.85}
         >
-          <Text style={styles.cardTitle}>🧓 Elder</Text>
+          <Text style={styles.icon}>🧓</Text>
+          <Text style={styles.cardTitle}>Elder</Text>
           <Text style={styles.cardText}>
             Request help, food, or medical assistance
           </Text>
@@ -34,10 +47,12 @@ export default function RoleSelectScreen({ navigation }) {
 
         {/* Volunteer */}
         <TouchableOpacity
-          style={[styles.card, styles.volunteer]}
+          style={[styles.card, { borderColor: colors.green }]}
           onPress={() => selectRole("volunteer")}
+          activeOpacity={0.85}
         >
-          <Text style={styles.cardTitle}>🤝 Volunteer</Text>
+          <Text style={styles.icon}>🤝</Text>
+          <Text style={styles.cardTitle}>Volunteer</Text>
           <Text style={styles.cardText}>
             Help elders and support your community
           </Text>
@@ -45,77 +60,77 @@ export default function RoleSelectScreen({ navigation }) {
 
         {/* NGO */}
         <TouchableOpacity
-          style={[styles.card, styles.ngo]}
+          style={[styles.card, { borderColor: colors.yellow }]}
           onPress={() => selectRole("ngo")}
+          activeOpacity={0.85}
         >
-          <Text style={styles.cardTitle}>🏢 NGO</Text>
+          <Text style={styles.icon}>🏢</Text>
+          <Text style={styles.cardTitle}>NGO</Text>
           <Text style={styles.cardText}>
             Manage requests and coordinate support
           </Text>
         </TouchableOpacity>
       </View>
-    </Safe>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: colors.bg,
   },
 
   content: {
     flex: 1,
     justifyContent: "center",
-    padding: 24,
+    padding: 30,
   },
 
   title: {
-    fontSize: 30,
+    fontSize: 32,
     fontWeight: "bold",
     textAlign: "center",
     marginBottom: 10,
-    color: "#1E293B",
+    color: colors.text,
   },
 
   subtitle: {
-    fontSize: 18,
+    fontSize: 16,
     textAlign: "center",
     marginBottom: 40,
-    color: "#64748B",
+    color: colors.muted,
   },
 
   card: {
-    padding: 24,
-    borderRadius: 18,
-    marginBottom: 20,
-    elevation: 5,
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 3 },
+    backgroundColor: colors.card,
+    padding: 25,
+    borderRadius: 20,
+    marginBottom: 25,
+    borderWidth: 1,
+    alignItems: "center",
+
+    // subtle elevation
+    ...(Platform.OS === "web"
+      ? { cursor: "pointer" }
+      : {}),
+  },
+
+  icon: {
+    fontSize: 40,
+    marginBottom: 10,
   },
 
   cardTitle: {
     fontSize: 22,
     fontWeight: "bold",
-    marginBottom: 8,
+    color: colors.text,
+    marginBottom: 6,
   },
 
   cardText: {
-    fontSize: 18,
-    opacity: 0.9,
-  },
-
-  elder: {
-    backgroundColor: "#DBEAFE", // soft blue
-  },
-
-  volunteer: {
-    backgroundColor: "#DCFCE7", // soft green
-  },
-
-  ngo: {
-    backgroundColor: "#FEF3C7", // soft yellow
+    fontSize: 15,
+    color: colors.muted,
+    textAlign: "center",
   },
 });

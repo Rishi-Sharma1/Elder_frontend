@@ -6,12 +6,20 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  SafeAreaView,
   Alert,
 } from "react-native";
-import { SafeAreaView as Safe } from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-safe-area-context";
 import axios from "axios";
 import { auth } from "../config/firebase";
+
+const colors = {
+  bg: "#0F172A",
+  card: "#1E293B",
+  border: "#334155",
+  primary: "#3B82F6",
+  text: "#F1F5F9",
+  muted: "#94A3B8",
+};
 
 export default function AvailableRequests() {
   const [requests, setRequests] = useState([]);
@@ -22,10 +30,12 @@ export default function AvailableRequests() {
     const fetchRequests = async () => {
       try {
         const token = await auth.currentUser.getIdToken();
+
         const res = await axios.get(
           "https://elderbackend-production.up.railway.app/volunteer/requests",
           { headers: { Authorization: `Bearer ${token}` } }
         );
+
         setRequests(res.data);
       } catch (err) {
         console.error("FETCH REQUESTS ERROR:", err.response?.data || err);
@@ -49,7 +59,7 @@ export default function AvailableRequests() {
       );
 
       Alert.alert("Success", "Request accepted!");
-      setRequests(requests.filter((r) => r._id !== id));
+      setRequests((prev) => prev.filter((r) => r._id !== id));
     } catch (err) {
       console.error("ACCEPT ERROR:", err.response?.data || err);
       Alert.alert("Error", "Failed to accept request");
@@ -60,38 +70,41 @@ export default function AvailableRequests() {
 
   if (loading) {
     return (
-      <Safe style={styles.center}>
-        <ActivityIndicator size="large" color="#2563EB" />
-      </Safe>
+      <SafeAreaView style={styles.center}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </SafeAreaView>
     );
   }
 
   if (requests.length === 0) {
     return (
-      <Safe style={styles.center}>
+      <SafeAreaView style={styles.center}>
         <Text style={styles.emptyText}>
           No available requests right now.
         </Text>
-      </Safe>
+      </SafeAreaView>
     );
   }
 
   return (
-    <Safe style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <FlatList
         data={requests}
         keyExtractor={(item) => item._id}
-        contentContainerStyle={{ padding: 20 }}
+        contentContainerStyle={{ padding: 24 }}
         renderItem={({ item }) => (
           <View style={styles.card}>
+            {/* Type */}
             <Text style={styles.type}>
-              {item.type.toUpperCase()}
+              {item.type?.toUpperCase()}
             </Text>
 
+            {/* Description */}
             <Text style={styles.description}>
               {item.description}
             </Text>
 
+            {/* Elder Info */}
             <Text style={styles.info}>
               👤 {item.elder?.name || item.elder?.email || "N/A"}
             </Text>
@@ -100,6 +113,7 @@ export default function AvailableRequests() {
               📞 {item.elder?.phone || "N/A"}
             </Text>
 
+            {/* Accept Button */}
             <TouchableOpacity
               style={styles.acceptButton}
               onPress={() => acceptRequest(item._id)}
@@ -116,54 +130,55 @@ export default function AvailableRequests() {
           </View>
         )}
       />
-    </Safe>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: colors.bg,
   },
 
   card: {
-    backgroundColor: "#FFF",
+    backgroundColor: colors.card,
     padding: 20,
-    borderRadius: 18,
-    marginBottom: 15,
-    elevation: 5,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: 16,
   },
 
   type: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "bold",
     marginBottom: 8,
-    color: "#1E293B",
+    color: colors.text,
   },
 
   description: {
-    fontSize: 18,
-    marginBottom: 10,
-    color: "#475569",
+    fontSize: 15,
+    marginBottom: 12,
+    color: colors.muted,
   },
 
   info: {
-    fontSize: 16,
+    fontSize: 14,
     marginBottom: 6,
-    color: "#334155",
+    color: colors.muted,
   },
 
   acceptButton: {
-    backgroundColor: "#2563EB",
-    paddingVertical: 16,
-    borderRadius: 14,
+    backgroundColor: colors.primary,
+    paddingVertical: 14,
+    borderRadius: 12,
     alignItems: "center",
-    marginTop: 12,
+    marginTop: 14,
   },
 
   acceptText: {
     color: "#FFF",
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: "600",
   },
 
@@ -171,11 +186,11 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#F8FAFC",
+    backgroundColor: colors.bg,
   },
 
   emptyText: {
-    fontSize: 20,
-    color: "#64748B",
+    fontSize: 18,
+    color: colors.muted,
   },
 });

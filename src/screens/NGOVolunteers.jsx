@@ -5,13 +5,26 @@ import {
   FlatList,
   StyleSheet,
   ActivityIndicator,
-  SafeAreaView,
+  Platform,
+  TouchableOpacity,
 } from "react-native";
-import { SafeAreaView as Safe } from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-safe-area-context";
 import axios from "axios";
 import { auth } from "../config/firebase";
 
-export default function NGOVolunteers() {
+const colors = {
+  bg: "#0F172A",
+  sidebar: "#0B1220",
+  card: "#1E293B",
+  border: "#334155",
+  text: "#F1F5F9",
+  muted: "#94A3B8",
+  success: "#22C55E",
+  danger: "#EF4444",
+  warning: "#F59E0B",
+};
+
+export default function NGOVolunteers({ navigation }) {
   const [volunteers, setVolunteers] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -24,7 +37,7 @@ export default function NGOVolunteers() {
           "https://elderbackend-production.up.railway.app/ngo/volunteers",
           {
             headers: { Authorization: `Bearer ${token}` },
-          }
+          },
         );
 
         setVolunteers(res.data);
@@ -40,112 +53,118 @@ export default function NGOVolunteers() {
 
   if (loading) {
     return (
-      <Safe style={styles.center}>
-        <ActivityIndicator size="large" color="#2563EB" />
-      </Safe>
+      <SafeAreaView style={styles.center}>
+        <ActivityIndicator size="large" color="#3B82F6" />
+      </SafeAreaView>
     );
   }
 
   if (volunteers.length === 0) {
     return (
-      <Safe style={styles.center}>
-        <Text style={styles.emptyText}>
-          No volunteers registered.
-        </Text>
-      </Safe>
+      <SafeAreaView style={styles.center}>
+        <Text style={styles.emptyText}>No volunteers registered.</Text>
+      </SafeAreaView>
     );
   }
 
   return (
-    <Safe style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <FlatList
         data={volunteers}
         keyExtractor={(item) => item._id}
-        contentContainerStyle={{ padding: 20 }}
+        contentContainerStyle={{ padding: 24 }}
         renderItem={({ item }) => {
-          const status = item.verification?.status || "not_uploaded";
+          const status = item.verification?.status || "Not Verified";
 
-          const statusStyle =
+          const statusColor =
             status === "approved"
-              ? styles.approved
+              ? colors.success
               : status === "rejected"
-              ? styles.rejected
-              : styles.pending;
+                ? colors.danger
+                : status === "not_verified"
+                  ? "#64748B"
+                  : colors.warning;
 
           return (
             <View style={styles.card}>
-              <Text style={styles.name}>
-                {item.name || "Volunteer"}
-              </Text>
+              <View style={styles.row}>
+                <View>
+                  <Text style={styles.name}>{item.name || "Volunteer"}</Text>
+                  <Text style={styles.email}>{item.email}</Text>
+                </View>
 
-              <Text style={styles.email}>
-                {item.email}
-              </Text>
-
-              <Text style={[styles.status, statusStyle]}>
-                Verification: {status.replace("_", " ").toUpperCase()}
-              </Text>
+                <View
+                  style={[styles.statusBadge, { backgroundColor: statusColor }]}
+                >
+                  <Text style={styles.statusText}>
+                    {status === "not_verified"
+                      ? "NOT VERIFIED"
+                      : status.replace("_", " ").toUpperCase()}
+                  </Text>
+                </View>
+              </View>
             </View>
           );
         }}
       />
-    </Safe>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: colors.bg,
   },
 
   card: {
-    backgroundColor: "#FFF",
-    padding: 20,
-    borderRadius: 18,
-    marginBottom: 15,
-    elevation: 5,
+    backgroundColor: colors.card,
+    padding: 18,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: 14,
+  },
+
+  row: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
 
   name: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "bold",
-    marginBottom: 6,
-    color: "#1E293B",
+    color: colors.text,
+    marginBottom: 4,
   },
 
   email: {
-    fontSize: 16,
-    marginBottom: 8,
-    color: "#475569",
+    fontSize: 14,
+    color: colors.muted,
   },
 
-  status: {
-    fontSize: 16,
+  statusBadge: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+  },
+
+  statusText: {
+    color: "#fff",
+    fontSize: 12,
     fontWeight: "600",
-  },
-
-  approved: {
-    color: "#16A34A",
-  },
-
-  rejected: {
-    color: "#DC2626",
-  },
-
-  pending: {
-    color: "#F59E0B",
   },
 
   center: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#F8FAFC",
+    backgroundColor: colors.bg,
   },
 
   emptyText: {
-    fontSize: 20,
-    color: "#64748B",
+    fontSize: 18,
+    color: colors.muted,
   },
 });

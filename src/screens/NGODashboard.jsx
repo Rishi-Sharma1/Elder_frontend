@@ -1,160 +1,248 @@
-import { useContext } from "react";
+import { useContext, useEffect, useState } from "react";
 import {
   View,
   Text,
-  TouchableOpacity,
-  StyleSheet,
   ScrollView,
-  StatusBar,
+  StyleSheet,
+  TouchableOpacity,
+  Platform,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AuthContext } from "../context/AuthContext";
-import Greeting from "../components/Greeting";
+import axios from "axios";
+import { auth } from "../config/firebase";
+
+const colors = {
+  bg: "#0F172A",
+  sidebar: "#0B1220",
+  card: "#1E293B",
+  border: "#334155",
+  primary: "#3B82F6",
+  text: "#F1F5F9",
+  muted: "#94A3B8",
+};
 
 export default function NGODashboard({ navigation }) {
   const user = useContext(AuthContext);
 
-  const status = user?.verification?.status || "not_uploaded";
+  const [volunteerCount, setVolunteerCount] = useState(0);
+  const [openRequests, setOpenRequests] = useState(0);
+  const [completedCount, setCompletedCount] = useState(0);
+  const [recent, setRecent] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const statusStyle =
-    status === "approved"
-      ? styles.approved
-      : status === "rejected"
-      ? styles.rejected
-      : styles.pending;
+  useEffect(() => {
+    const fetchDashboard = async () => {
+      try {
+        const token = await auth.currentUser.getIdToken();
+
+        const statsRes = await axios.get(
+  "https://elderbackend-production.up.railway.app/ngo/stats",
+  { headers: { Authorization: `Bearer ${token}` } }
+);
+
+setVolunteerCount(statsRes.data.volunteers);
+setOpenRequests(statsRes.data.openRequests);
+setCompletedCount(statsRes.data.completedTasks);
+
+
+        const completedRes = await axios.get(
+          "https://elderbackend-production.up.railway.app/ngo/completed",
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
+
+        setVolunteerCount(statsRes.data.volunteers);
+        setCompletedCount(statsRes.data.completedTasks);
+        setRecent(completedRes.data);
+      } catch (err) {
+        console.log("NGO DASHBOARD ERROR:", err.response?.data || err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboard();
+  }, []);
+
+  if (loading)
+    return (
+      <SafeAreaView style={styles.container}>
+        <ActivityIndicator size="large" color="#3B82F6" />
+      </SafeAreaView>
+    );
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" />
+      <View style={styles.layout}>
+        {Platform.OS === "web" && (
+          <View style={styles.sidebar}>
+            <Text style={styles.logo}>ElderConnect</Text>
+            <Text style={styles.hub}>NGO Hub</Text>
 
-      <ScrollView contentContainerStyle={styles.content}>
-        <Greeting />
+            <SidebarItem label="Dashboard" active />
+            <SidebarItem
+              label="Volunteers"
+              onPress={() => navigation.navigate("NGOVolunteers")}
+            />
+            <SidebarItem
+              label="Available Requests"
+              onPress={() => navigation.navigate("NGORequests")}
+            />
+          </View>
+        )}
 
-        {/* Verification Card */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Verification Status</Text>
-          <Text style={[styles.cardValue, statusStyle]}>
-            {status.replace("_", " ").toUpperCase()}
+        <ScrollView style={styles.content}>
+          <Text style={styles.heading}>Dashboard</Text>
+          <Text style={styles.subheading}>
+            Overview of activities and performance
           </Text>
-        </View>
 
-        {/* Section Title */}
-        <Text style={styles.sectionTitle}>NGO Management</Text>
+          <Text style={styles.sectionTitle}>Key Metrics</Text>
 
-        {/* Dashboard Stats */}
-        <TouchableOpacity
-          style={styles.primaryButton}
-          onPress={() => navigation.navigate("NGOStats")}
-        >
-          <Text style={styles.primaryText}>
-            📊 Dashboard Statistics
-          </Text>
-        </TouchableOpacity>
+          <View style={styles.metricsRow}>
+  <MetricCard
+    title="Active Volunteers"
+    value={volunteerCount}
+  />
 
-        {/* All Requests */}
-        <TouchableOpacity
-          style={styles.secondaryButton}
-          onPress={() => navigation.navigate("NGORequests")}
-        >
-          <Text style={styles.secondaryText}>
-            📋 View All Requests
-          </Text>
-        </TouchableOpacity>
+  <MetricCard
+    title="Open Requests"
+    value={openRequests}
+  />
 
-        {/* Volunteers */}
-        <TouchableOpacity
-          style={styles.tertiaryButton}
-          onPress={() => navigation.navigate("NGOVolunteers")}
-        >
-          <Text style={styles.tertiaryText}>
-            👥 Manage Volunteers
-          </Text>
-        </TouchableOpacity>
-      </ScrollView>
+  <MetricCard
+    title="Completed Tasks"
+    value={completedCount}
+  />
+</View>
+
+
+          <Text style={styles.sectionTitle}>Recent Activities</Text>
+
+          <Table
+            headers={["Elder", "Type", "Volunteer", "Status"]}
+            rows={
+              recent.length > 0
+                ? recent.map((r) => [
+                    r.elder?.name || "N/A",
+                    r.type || "N/A",
+                    r.volunteer?.name || "N/A",
+                    "Completed",
+                  ])
+                : [["No completed tasks yet", "", "", ""]]
+            }
+          />
+        </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }
 
+const SidebarItem = ({ label, active, onPress }) => (
+  <TouchableOpacity
+    onPress={onPress}
+    style={[styles.sidebarItem, active && { backgroundColor: colors.card }]}
+  >
+    <Text style={styles.sidebarText}>{label}</Text>
+  </TouchableOpacity>
+);
+
+const MetricCard = ({ title, value }) => (
+  <View style={styles.metricCard}>
+    <Text style={styles.metricTitle}>{title}</Text>
+    <Text style={styles.metricValue}>{value}</Text>
+  </View>
+);
+
+const Table = ({ headers, rows }) => (
+  <View style={styles.table}>
+    <View style={styles.tableHeader}>
+      {headers.map((h, i) => (
+        <Text key={i} style={styles.tableHeaderText}>
+          {h}
+        </Text>
+      ))}
+    </View>
+
+    {rows.map((row, i) => (
+      <View key={i} style={styles.tableRow}>
+        {row.map((cell, j) => (
+          <View key={j} style={styles.cell}>
+            <Text style={styles.cellText}>{cell}</Text>
+          </View>
+        ))}
+      </View>
+    ))}
+  </View>
+);
+
 const styles = StyleSheet.create({
-  container: {
+  container: { flex: 1, backgroundColor: colors.bg },
+  layout: {
+    flexDirection: Platform.OS === "web" ? "row" : "column",
     flex: 1,
-    backgroundColor: "#F8FAFC",
   },
-
-  content: {
-    padding: 24,
+  sidebar: {
+    width: 250,
+    backgroundColor: colors.sidebar,
+    padding: 20,
   },
-
-  card: {
-    backgroundColor: "#FFF",
-    padding: 22,
-    borderRadius: 18,
-    marginTop: 20,
-    marginBottom: 25,
-    elevation: 5,
-  },
-
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#64748B",
-    marginBottom: 10,
-  },
-
-  cardValue: {
-    fontSize: 22,
-    fontWeight: "bold",
-  },
-
-  approved: { color: "#16A34A" },
-  rejected: { color: "#DC2626" },
-  pending: { color: "#F59E0B" },
-
+  logo: { fontSize: 20, fontWeight: "bold", color: colors.text },
+  hub: { color: colors.muted, marginBottom: 30 },
+  sidebarItem: { padding: 12, borderRadius: 10, marginBottom: 8 },
+  sidebarText: { color: colors.text },
+  content: { flex: 1, padding: 24 },
+  heading: { fontSize: 28, fontWeight: "bold", color: colors.text },
+  subheading: { color: colors.muted, marginBottom: 25 },
   sectionTitle: {
-    fontSize: 22,
+    fontSize: 20,
+    fontWeight: "600",
+    color: colors.text,
+    marginBottom: 15,
+    marginTop: 20,
+  },
+  metricsRow: {
+    flexDirection: Platform.OS === "web" ? "row" : "column",
+    gap: 15,
+    marginBottom: 30,
+  },
+  metricCard: {
+    flex: 1,
+    backgroundColor: colors.card,
+    padding: 20,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  metricTitle: { color: colors.muted, marginBottom: 10 },
+  metricValue: {
+    fontSize: 26,
     fontWeight: "bold",
-    marginBottom: 20,
-    color: "#1E293B",
+    color: colors.text,
   },
-
-  primaryButton: {
-    backgroundColor: "#2563EB",
-    paddingVertical: 20,
-    borderRadius: 16,
-    alignItems: "center",
-    marginBottom: 20,
+  table: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    overflow: "hidden",
   },
-
-  primaryText: {
-    color: "#FFF",
-    fontSize: 20,
+  tableHeader: {
+    flexDirection: "row",
+    backgroundColor: colors.card,
+    padding: 12,
+  },
+  tableHeaderText: {
+    flex: 1,
+    color: colors.muted,
     fontWeight: "600",
   },
-
-  secondaryButton: {
-    backgroundColor: "#16A34A",
-    paddingVertical: 20,
-    borderRadius: 16,
-    alignItems: "center",
-    marginBottom: 20,
+  tableRow: {
+    flexDirection: "row",
+    padding: 12,
+    borderTopWidth: 1,
+    borderColor: colors.border,
   },
-
-  secondaryText: {
-    color: "#FFF",
-    fontSize: 20,
-    fontWeight: "600",
-  },
-
-  tertiaryButton: {
-    backgroundColor: "#F59E0B",
-    paddingVertical: 20,
-    borderRadius: 16,
-    alignItems: "center",
-  },
-
-  tertiaryText: {
-    color: "#FFF",
-    fontSize: 20,
-    fontWeight: "600",
-  },
+  cell: { flex: 1 },
+  cellText: { color: colors.text },
 });

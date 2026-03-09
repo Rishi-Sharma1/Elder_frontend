@@ -6,13 +6,23 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  SafeAreaView,
   Alert,
 } from "react-native";
-import { SafeAreaView as Safe } from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-safe-area-context";
 import axios from "axios";
 import { auth } from "../config/firebase";
 import { useFocusEffect } from "@react-navigation/native";
+
+const colors = {
+  bg: "#0F172A",
+  card: "#1E293B",
+  border: "#334155",
+  primary: "#3B82F6",
+  success: "#16A34A",
+  warning: "#F59E0B",
+  text: "#F1F5F9",
+  muted: "#94A3B8",
+};
 
 export default function MyTasks() {
   const [tasks, setTasks] = useState([]);
@@ -56,8 +66,8 @@ export default function MyTasks() {
 
       Alert.alert("Success", "Task marked as completed");
 
-      setTasks(
-        tasks.map((t) =>
+      setTasks((prev) =>
+        prev.map((t) =>
           t._id === id ? { ...t, status: "completed" } : t
         )
       );
@@ -70,143 +80,147 @@ export default function MyTasks() {
 
   if (loading) {
     return (
-      <Safe style={styles.center}>
-        <ActivityIndicator size="large" color="#2563EB" />
-      </Safe>
+      <SafeAreaView style={styles.center}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </SafeAreaView>
     );
   }
 
   if (tasks.length === 0) {
     return (
-      <Safe style={styles.center}>
+      <SafeAreaView style={styles.center}>
         <Text style={styles.emptyText}>
           No tasks assigned yet.
         </Text>
-      </Safe>
+      </SafeAreaView>
     );
   }
 
   return (
-    <Safe style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <FlatList
         data={tasks}
         keyExtractor={(item) => item._id}
-        contentContainerStyle={{ padding: 20 }}
-        renderItem={({ item }) => {
-          const statusStyle =
-            item.status === "completed"
-              ? styles.completed
-              : item.status === "assigned"
-              ? styles.assigned
-              : styles.pending;
+        contentContainerStyle={{ padding: 24 }}
+        renderItem={({ item }) => (
+          <View style={styles.card}>
+            <Text style={styles.type}>
+              {item.type?.toUpperCase()}
+            </Text>
 
-          return (
-            <View style={styles.card}>
-              <Text style={styles.type}>
-                {item.type.toUpperCase()}
-              </Text>
+            <Text style={styles.description}>
+              {item.description}
+            </Text>
 
-              <Text style={styles.description}>
-                {item.description}
-              </Text>
+            <Text style={styles.info}>
+              👤 {item.elder?.name || "N/A"}
+            </Text>
 
-              <Text style={styles.info}>
-                👤 {item.elder?.name || "N/A"}
-              </Text>
+            <Text style={styles.info}>
+              📧 {item.elder?.email || "N/A"}
+            </Text>
 
-              <Text style={styles.info}>
-                📧 {item.elder?.email || "N/A"}
-              </Text>
+            <StatusBadge status={item.status} />
 
-              <Text style={[styles.status, statusStyle]}>
-                Status: {item.status}
-              </Text>
-
-              {item.status !== "completed" && (
-                <TouchableOpacity
-                  style={styles.completeButton}
-                  onPress={() => completeTask(item._id)}
-                  disabled={processingId === item._id}
-                >
-                  {processingId === item._id ? (
-                    <ActivityIndicator color="#FFF" />
-                  ) : (
-                    <Text style={styles.completeText}>
-                      Mark as Completed
-                    </Text>
-                  )}
-                </TouchableOpacity>
-              )}
-            </View>
-          );
-        }}
+            {item.status !== "completed" && (
+              <TouchableOpacity
+                style={styles.completeButton}
+                onPress={() => completeTask(item._id)}
+                disabled={processingId === item._id}
+              >
+                {processingId === item._id ? (
+                  <ActivityIndicator color="#FFF" />
+                ) : (
+                  <Text style={styles.completeText}>
+                    Mark as Completed
+                  </Text>
+                )}
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
       />
-    </Safe>
+    </SafeAreaView>
   );
 }
+
+const StatusBadge = ({ status }) => {
+  const lower = status?.toLowerCase();
+
+  let backgroundColor = colors.card;
+
+  if (lower === "completed") backgroundColor = colors.success;
+  else if (lower === "assigned") backgroundColor = colors.primary;
+  else backgroundColor = colors.warning;
+
+  return (
+    <View style={[styles.statusBadge, { backgroundColor }]}>
+      <Text style={styles.statusText}>
+        {status?.toUpperCase()}
+      </Text>
+    </View>
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: colors.bg,
   },
 
   card: {
-    backgroundColor: "#FFF",
+    backgroundColor: colors.card,
     padding: 20,
-    borderRadius: 18,
-    marginBottom: 15,
-    elevation: 5,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: 16,
   },
 
   type: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "bold",
-    marginBottom: 8,
-    color: "#1E293B",
+    marginBottom: 6,
+    color: colors.text,
   },
 
   description: {
-    fontSize: 18,
+    fontSize: 15,
     marginBottom: 10,
-    color: "#475569",
+    color: colors.muted,
   },
 
   info: {
-    fontSize: 16,
+    fontSize: 14,
     marginBottom: 6,
-    color: "#334155",
+    color: colors.muted,
   },
 
-  status: {
-    fontSize: 16,
+  statusBadge: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    alignSelf: "flex-start",
+    marginTop: 10,
+  },
+
+  statusText: {
+    color: "#FFF",
+    fontSize: 12,
     fontWeight: "600",
-    marginTop: 6,
-  },
-
-  completed: {
-    color: "#16A34A",
-  },
-
-  assigned: {
-    color: "#2563EB",
-  },
-
-  pending: {
-    color: "#F59E0B",
   },
 
   completeButton: {
-    backgroundColor: "#16A34A",
-    paddingVertical: 16,
-    borderRadius: 14,
+    backgroundColor: colors.success,
+    paddingVertical: 14,
+    borderRadius: 12,
     alignItems: "center",
-    marginTop: 12,
+    marginTop: 14,
   },
 
   completeText: {
     color: "#FFF",
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: "600",
   },
 
@@ -214,11 +228,11 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#F8FAFC",
+    backgroundColor: colors.bg,
   },
 
   emptyText: {
-    fontSize: 20,
-    color: "#64748B",
+    fontSize: 18,
+    color: colors.muted,
   },
 });

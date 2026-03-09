@@ -19,6 +19,7 @@ export function AuthProvider({ children }) {
     await auth.signOut();
     setUser(null);
   };
+  
 
   useEffect(() => {
 
@@ -36,7 +37,7 @@ export function AuthProvider({ children }) {
           return;
         }
 
-        const token = await firebaseUser.getIdToken(true);
+        const token = await firebaseUser.getIdToken();
 
         const res = await axios.get(
           "https://elderbackend-production.up.railway.app/auth/me",
@@ -46,6 +47,9 @@ export function AuthProvider({ children }) {
             },
           }
         );
+
+        console.log("AUTH USER:", res.data);
+
 
         if (isMounted && res.data) {
           setUser(res.data);
