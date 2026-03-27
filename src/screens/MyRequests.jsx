@@ -31,7 +31,7 @@ export default function MyRequests() {
         const token = await auth.currentUser.getIdToken();
 
         const res = await axios.get(
-          "https://elderbackend-production.up.railway.app/elder/requests",
+          "http://localhost:5000/elder/requests",
           { headers: { Authorization: `Bearer ${token}` } }
         );
 
@@ -51,8 +51,8 @@ export default function MyRequests() {
       item.status === "approved"
         ? styles.approved
         : item.status === "rejected"
-        ? styles.rejected
-        : styles.pending;
+          ? styles.rejected
+          : styles.pending;
 
     return (
       <View style={styles.card}>

@@ -20,7 +20,7 @@ export default function NGOStats() {
         const token = await auth.currentUser.getIdToken();
 
         const res = await axios.get(
-          "https://elderbackend-production.up.railway.app/ngo/stats",
+          "http://localhost:5000/ngo/stats",
           { headers: { Authorization: `Bearer ${token}` } }
         );
 

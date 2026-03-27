@@ -32,7 +32,7 @@ export default function AvailableRequests() {
         const token = await auth.currentUser.getIdToken();
 
         const res = await axios.get(
-          "https://elderbackend-production.up.railway.app/volunteer/requests",
+          "http://localhost:5000/volunteer/requests",
           { headers: { Authorization: `Bearer ${token}` } }
         );
 
@@ -53,7 +53,7 @@ export default function AvailableRequests() {
       const token = await auth.currentUser.getIdToken();
 
       await axios.post(
-        `https://elderbackend-production.up.railway.app/volunteer/accept/${id}`,
+        `http://localhost:5000/volunteer/accept/${id}`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );

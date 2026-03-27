@@ -35,7 +35,7 @@ export default function MyTasks() {
       const token = await auth.currentUser.getIdToken();
 
       const res = await axios.get(
-        "https://elderbackend-production.up.railway.app/volunteer/tasks",
+        "http://localhost:5000/volunteer/tasks",
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -59,7 +59,7 @@ export default function MyTasks() {
       const token = await auth.currentUser.getIdToken();
 
       await axios.post(
-        `https://elderbackend-production.up.railway.app/volunteer/complete/${id}`,
+        `http://localhost:5000/volunteer/complete/${id}`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );

@@ -1,13 +1,13 @@
 import axios from "axios";
-import { auth } from "../src/config/firebase";
+import { auth } from "./config/firebase";
 
 const api = axios.create({
-  baseURL: "https://elderbackend-production.up.railway.app/api"
+  baseURL: "http://10.0.2.2:5000"
 });
 
-api.interceptors.request.use(async (config)=>{
+api.interceptors.request.use(async (config) => {
   const token = await auth.currentUser?.getIdToken();
-  if(token){
+  if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;

@@ -5,6 +5,7 @@ import { ActivityIndicator, View, Alert } from "react-native";
 
 import { AuthContext } from "../context/AuthContext";
 
+import HomeScreen from "../screens/HomeScreen";
 import LoginScreen from "../screens/LoginScreen";
 import SignupScreen from "../screens/SignupScreen";
 import RoleSelectScreen from "../screens/RoleSelectScreen";
@@ -24,8 +25,16 @@ import NGORequests from "../screens/NGORequests";
 import AssignVolunteer from "../screens/AssignVolunteer";
 import NGOVolunteers from "../screens/NGOVolunteers";
 import ManageUsers from "../screens/ManageUsers";
+import AdminUserManagement from "../screens/AdminUserManagement";
+import AdminNGOApprovals from "../screens/AdminNGOApprovals";
+import AdminActivityMonitoring from "../screens/AdminActivityMonitoring";
+import AdminFlaggedReports from "../screens/AdminFlaggedReports";
 import ProfileMenu from "../components/ProfileMenu";
 import MyProfile from "../screens/MyProfile";
+import DeliveryOrderScreen from "../screens/DeliveryOrderScreen";
+import DeliveryTrackingScreen from "../screens/DeliveryTrackingScreen";
+import DeliveryHistoryScreen from "../screens/DeliveryHistoryScreen";
+import VolunteerActiveDelivery from "../screens/VolunteerActiveDelivery";
 
 const Stack = createNativeStackNavigator();
 
@@ -55,11 +64,16 @@ export default function AppNavigator() {
       <Stack.Navigator
         screenOptions={{
           headerShown: true,
+          headerStyle: { backgroundColor: "#0F172A" },
+          headerTintColor: "#F1F5F9",
+          headerTitleStyle: { color: "#F1F5F9", fontWeight: "700" },
+          headerShadowVisible: false,
           headerRight: () => (user ? <ProfileMenu /> : null),
         }}
       >
         {!user ? (
           <>
+            <Stack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
             <Stack.Screen name="Login" component={LoginScreen} />
             <Stack.Screen name="Signup" component={SignupScreen} />
             <Stack.Screen name="RoleSelect" component={RoleSelectScreen} />
@@ -69,6 +83,9 @@ export default function AppNavigator() {
             <Stack.Screen name="ElderDashboard" component={ElderDashboard} />
             <Stack.Screen name="CreateRequest" component={CreateRequest} />
             <Stack.Screen name="MyRequests" component={MyRequests} />
+            <Stack.Screen name="DeliveryOrderScreen" component={DeliveryOrderScreen} options={{ title: "New Delivery" }} />
+            <Stack.Screen name="DeliveryTrackingScreen" component={DeliveryTrackingScreen} options={{ title: "Track Delivery" }} />
+            <Stack.Screen name="DeliveryHistoryScreen" component={DeliveryHistoryScreen} options={{ title: "My Deliveries" }} />
           </>
         ) : user.role === "volunteer" ? (
           <>
@@ -81,6 +98,7 @@ export default function AppNavigator() {
               component={AvailableRequests}
             />
             <Stack.Screen name="MyTasks" component={MyTasks} />
+            <Stack.Screen name="VolunteerActiveDelivery" component={VolunteerActiveDelivery} options={{ title: "Active Delivery" }} />
           </>
         ) : user.role === "ngo" ? (
           <>
@@ -98,6 +116,10 @@ export default function AppNavigator() {
           <>
             <Stack.Screen name="AdminDashboard" component={AdminDashboard} />
             <Stack.Screen name="ManageUsers" component={ManageUsers} />
+            <Stack.Screen name="AdminUserManagement" component={AdminUserManagement} options={{ title: "User Management" }} />
+            <Stack.Screen name="AdminNGOApprovals" component={AdminNGOApprovals} options={{ title: "NGO Approvals" }} />
+            <Stack.Screen name="AdminActivityMonitoring" component={AdminActivityMonitoring} options={{ title: "Activity Monitoring" }} />
+            <Stack.Screen name="AdminFlaggedReports" component={AdminFlaggedReports} options={{ title: "Flagged Reports" }} />
           </>
         )}
         <Stack.Screen name="MyProfile" component={MyProfile} />

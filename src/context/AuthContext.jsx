@@ -19,7 +19,7 @@ export function AuthProvider({ children }) {
     await auth.signOut();
     setUser(null);
   };
-  
+
 
   useEffect(() => {
 
@@ -40,7 +40,7 @@ export function AuthProvider({ children }) {
         const token = await firebaseUser.getIdToken();
 
         const res = await axios.get(
-          "https://elderbackend-production.up.railway.app/auth/me",
+          "http://10.0.2.2:5000/auth/me",
           {
             headers: {
               Authorization: `Bearer ${token}`,

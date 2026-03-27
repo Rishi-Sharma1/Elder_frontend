@@ -43,7 +43,7 @@ export default function CreateRequest({ navigation }) {
       const token = await auth.currentUser.getIdToken();
 
       await axios.post(
-        "https://elderbackend-production.up.railway.app/elder/request",
+        "http://localhost:5000/elder/request",
         {
           type: type.toLowerCase(),
           description,
@@ -175,8 +175,9 @@ const styles = StyleSheet.create({
   },
 
   picker: {
-    color: "#000",
+    color: colors.text,
     height: 55,
+    width: "100%",
   },
 
   textArea: {

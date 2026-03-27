@@ -38,17 +38,17 @@ export default function NGODashboard({ navigation }) {
         const token = await auth.currentUser.getIdToken();
 
         const statsRes = await axios.get(
-  "https://elderbackend-production.up.railway.app/ngo/stats",
-  { headers: { Authorization: `Bearer ${token}` } }
-);
+          "http://10.0.2.2:5000/ngo/stats",
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
 
-setVolunteerCount(statsRes.data.volunteers);
-setOpenRequests(statsRes.data.openRequests);
-setCompletedCount(statsRes.data.completedTasks);
+        setVolunteerCount(statsRes.data.volunteers);
+        setOpenRequests(statsRes.data.openRequests);
+        setCompletedCount(statsRes.data.completedTasks);
 
 
         const completedRes = await axios.get(
-          "https://elderbackend-production.up.railway.app/ngo/completed",
+          "http://10.0.2.2:5000/ngo/completed",
           { headers: { Authorization: `Bearer ${token}` } },
         );
 
@@ -101,21 +101,21 @@ setCompletedCount(statsRes.data.completedTasks);
           <Text style={styles.sectionTitle}>Key Metrics</Text>
 
           <View style={styles.metricsRow}>
-  <MetricCard
-    title="Active Volunteers"
-    value={volunteerCount}
-  />
+            <MetricCard
+              title="Active Volunteers"
+              value={volunteerCount}
+            />
 
-  <MetricCard
-    title="Open Requests"
-    value={openRequests}
-  />
+            <MetricCard
+              title="Open Requests"
+              value={openRequests}
+            />
 
-  <MetricCard
-    title="Completed Tasks"
-    value={completedCount}
-  />
-</View>
+            <MetricCard
+              title="Completed Tasks"
+              value={completedCount}
+            />
+          </View>
 
 
           <Text style={styles.sectionTitle}>Recent Activities</Text>
@@ -125,11 +125,11 @@ setCompletedCount(statsRes.data.completedTasks);
             rows={
               recent.length > 0
                 ? recent.map((r) => [
-                    r.elder?.name || "N/A",
-                    r.type || "N/A",
-                    r.volunteer?.name || "N/A",
-                    "Completed",
-                  ])
+                  r.elder?.name || "N/A",
+                  r.type || "N/A",
+                  r.volunteer?.name || "N/A",
+                  "Completed",
+                ])
                 : [["No completed tasks yet", "", "", ""]]
             }
           />

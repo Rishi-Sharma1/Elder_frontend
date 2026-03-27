@@ -30,7 +30,7 @@ export default function NGORequests({ navigation }) {
       const token = await auth.currentUser.getIdToken();
 
       const res = await axios.get(
-        "https://elderbackend-production.up.railway.app/ngo/requests",
+        "http://localhost:5000/ngo/requests",
         { headers: { Authorization: `Bearer ${token}` } }
       );
 

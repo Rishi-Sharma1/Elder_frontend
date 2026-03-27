@@ -113,7 +113,7 @@ export default function MyProfile() {
       if (idImage) imageUrl = await uploadImage();
 
       const res = await axios.put(
-        "https://elderbackend-production.up.railway.app/auth/update-profile",
+        "http://localhost:5000/auth/update-profile",
         {
           phone,
           address,

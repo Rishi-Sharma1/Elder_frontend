@@ -24,7 +24,7 @@ export default function AssignVolunteer({ route, navigation }) {
         const token = await auth.currentUser.getIdToken();
 
         const res = await axios.get(
-          "https://elderbackend-production.up.railway.app/ngo/volunteers",
+          "http://localhost:5000/ngo/volunteers",
           { headers: { Authorization: `Bearer ${token}` } }
         );
 
@@ -46,7 +46,7 @@ export default function AssignVolunteer({ route, navigation }) {
       const token = await auth.currentUser.getIdToken();
 
       await axios.post(
-        "https://elderbackend-production.up.railway.app/ngo/assign",
+        "http://localhost:5000/ngo/assign",
         { requestId, volunteerId },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -92,8 +92,8 @@ export default function AssignVolunteer({ route, navigation }) {
             status === "approved"
               ? styles.approved
               : status === "rejected"
-              ? styles.rejected
-              : styles.pending;
+                ? styles.rejected
+                : styles.pending;
 
           return (
             <View style={styles.card}>

@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Platform,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AuthContext } from "../context/AuthContext";
@@ -29,29 +30,30 @@ export default function VolunteerDashboard({ navigation }) {
 
   const [available, setAvailable] = useState([]);
   const [completed, setCompleted] = useState([]);
+  const [deliveries, setDeliveries] = useState([]);
+  const [activeDelivery, setActiveDelivery] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchDashboard = async () => {
       try {
         const token = await auth.currentUser.getIdToken();
+        const headers = { Authorization: `Bearer ${token}` };
 
-        const availableRes = await axios.get(
-          "https://elderbackend-production.up.railway.app/volunteer/requests",
-          { headers: { Authorization: `Bearer ${token}` } },
-        );
-
-        const tasksRes = await axios.get(
-          "https://elderbackend-production.up.railway.app/volunteer/tasks",
-          { headers: { Authorization: `Bearer ${token}` } },
-        );
+        const [availableRes, tasksRes, deliveriesRes, activeRes] = await Promise.all([
+          axios.get("http://10.0.2.2:5000/volunteer/requests", { headers }),
+          axios.get("http://10.0.2.2:5000/volunteer/tasks", { headers }),
+          axios.get("http://10.0.2.2:5000/delivery/available", { headers }),
+          axios.get("http://10.0.2.2:5000/delivery/active", { headers }),
+        ]);
 
         setAvailable(availableRes.data);
+        setDeliveries(deliveriesRes.data);
+        setActiveDelivery(activeRes.data);
 
         const completedTasks = tasksRes.data
           .filter((t) => t.status?.toLowerCase() === "completed")
           .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
-
         setCompleted(completedTasks);
       } catch (err) {
         console.log("DASHBOARD ERROR:", err.response?.data || err);
@@ -62,6 +64,22 @@ export default function VolunteerDashboard({ navigation }) {
 
     fetchDashboard();
   }, []);
+
+  const acceptDelivery = async (deliveryId) => {
+    try {
+      const token = await auth.currentUser.getIdToken();
+      await axios.post(
+        `http://10.0.2.2:5000/delivery/accept/${deliveryId}`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      navigation.navigate("VolunteerActiveDelivery", { orderId: deliveryId });
+    } catch (err) {
+      console.error("ACCEPT DELIVERY ERROR:", err);
+      const msg = "Failed to accept delivery";
+      Platform.OS === "web" ? alert(msg) : Alert.alert("Error", msg);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -94,6 +112,16 @@ export default function VolunteerDashboard({ navigation }) {
               label="My Tasks"
               onPress={() => navigation.navigate("MyTasks")}
             />
+            {activeDelivery && (
+              <SidebarItem
+                label="🚚 Active Delivery"
+                onPress={() =>
+                  navigation.navigate("VolunteerActiveDelivery", {
+                    orderId: activeDelivery._id,
+                  })
+                }
+              />
+            )}
           </View>
         )}
 
@@ -114,13 +142,78 @@ export default function VolunteerDashboard({ navigation }) {
                   title="Available Tasks"
                   value={available.length}
                   color={colors.primary}
+                  onPress={() => navigation.navigate("AvailableRequests")}
                 />
                 <StatCard
                   title="Completed Tasks"
                   value={completed.length}
                   color={colors.green}
+                  onPress={() => navigation.navigate("MyTasks")}
+                />
+                <StatCard
+                  title="Pending Deliveries"
+                  value={deliveries.length}
+                  color="#F59E0B"
                 />
               </View>
+
+              {/* Active Delivery Banner */}
+              {activeDelivery && (
+                <TouchableOpacity
+                  style={styles.activeDeliveryBanner}
+                  onPress={() =>
+                    navigation.navigate("VolunteerActiveDelivery", {
+                      orderId: activeDelivery._id,
+                    })
+                  }
+                >
+                  <View style={styles.activeBannerLeft}>
+                    <Text style={styles.activeBannerIcon}>🚚</Text>
+                    <View>
+                      <Text style={styles.activeBannerTitle}>Active Delivery</Text>
+                      <Text style={styles.activeBannerDesc}>
+                        {activeDelivery.category === "medicine" ? "💊 Medicine" : "🛒 Grocery"} •{" "}
+                        {activeDelivery.items?.length} items • {activeDelivery.status?.replace(/_/g, " ")}
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={styles.activeBannerArrow}>→</Text>
+                </TouchableOpacity>
+              )}
+
+              {/* Available Deliveries */}
+              {deliveries.length > 0 && (
+                <>
+                  <SectionTitle title="🚚 Available Deliveries" />
+                  {deliveries.slice(0, 5).map((delivery) => (
+                    <View key={delivery._id} style={styles.deliveryCard}>
+                      <View style={styles.deliveryCardHeader}>
+                        <Text style={styles.deliveryCategory}>
+                          {delivery.category === "medicine" ? "💊 Medicine" : "🛒 Grocery"}
+                        </Text>
+                        <Text style={styles.deliveryItemCount}>
+                          {delivery.items?.length} items
+                          {delivery.items?.some((i) => i.urgent) && " · ⚡ Urgent"}
+                        </Text>
+                      </View>
+                      <Text style={styles.deliveryAddress} numberOfLines={1}>
+                        📍 {delivery.deliveryAddress}
+                      </Text>
+                      {delivery.elder && (
+                        <Text style={styles.deliveryElder}>
+                          👤 {delivery.elder.name}
+                        </Text>
+                      )}
+                      <TouchableOpacity
+                        style={styles.acceptDeliveryBtn}
+                        onPress={() => acceptDelivery(delivery._id)}
+                      >
+                        <Text style={styles.acceptDeliveryText}>Accept Delivery →</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </>
+              )}
 
               {/* Quick Actions */}
               <SectionTitle title="Quick Actions" />
@@ -179,11 +272,15 @@ const SidebarItem = ({ label, active, onPress }) => (
   </TouchableOpacity>
 );
 
-const StatCard = ({ title, value, color }) => (
-  <View style={[styles.statCard, { borderColor: color }]}>
+const StatCard = ({ title, value, color, onPress }) => (
+  <TouchableOpacity
+    style={[styles.statCard, { borderColor: color }]}
+    onPress={onPress}
+    activeOpacity={0.7}
+  >
     <Text style={styles.statNumber}>{value}</Text>
     <Text style={styles.statTitle}>{title}</Text>
-  </View>
+  </TouchableOpacity>
 );
 
 const SectionTitle = ({ title }) => (
@@ -329,4 +426,48 @@ const styles = StyleSheet.create({
     color: colors.green,
     fontSize: 12,
   },
+
+  // Delivery styles
+  activeDeliveryBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: colors.primary + "15",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    padding: 16,
+    marginBottom: 20,
+  },
+  activeBannerLeft: { flexDirection: "row", alignItems: "center", gap: 12, flex: 1 },
+  activeBannerIcon: { fontSize: 28 },
+  activeBannerTitle: { fontSize: 16, fontWeight: "700", color: colors.text },
+  activeBannerDesc: { fontSize: 13, color: colors.muted, marginTop: 2 },
+  activeBannerArrow: { fontSize: 20, color: colors.primary, fontWeight: "700" },
+
+  deliveryCard: {
+    backgroundColor: colors.card,
+    padding: 18,
+    borderRadius: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  deliveryCardHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  deliveryCategory: { color: colors.primary, fontWeight: "bold", fontSize: 14 },
+  deliveryItemCount: { color: colors.muted, fontSize: 12 },
+  deliveryAddress: { color: colors.muted, fontSize: 13, marginBottom: 6 },
+  deliveryElder: { color: colors.text, fontSize: 13, marginBottom: 10 },
+  acceptDeliveryBtn: {
+    backgroundColor: colors.primary,
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  acceptDeliveryText: { color: "#FFF", fontWeight: "600", fontSize: 14 },
 });

@@ -1,326 +1,402 @@
-import { useContext, useEffect, useState } from "react";
+import { useContext, useEffect, useState, useCallback } from "react";
 import {
   View,
   Text,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
-  Platform,
   ActivityIndicator,
+  RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AuthContext } from "../context/AuthContext";
-import axios from "axios";
-import { auth } from "../config/firebase";
+import api from "../api";
+import ElderSidebar, { ElderMobileBottomBar } from "../components/ElderSidebar";
+import useResponsive from "../hooks/useResponsive";
 
 const colors = {
   bg: "#0F172A",
-  sidebar: "#0B1220",
   card: "#1E293B",
   border: "#334155",
-  primary: "#3B82F6",
+  primary: "#4799EB",
+  primaryDark: "#2563EB",
+  success: "#22C55E",
+  warning: "#F59E0B",
+  danger: "#EF4444",
   text: "#F1F5F9",
   muted: "#94A3B8",
 };
 
 export default function ElderDashboard({ navigation }) {
   const { user } = useContext(AuthContext);
+  const responsive = useResponsive();
 
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    const fetchRequests = async () => {
-      try {
-        const token = await auth.currentUser.getIdToken();
-        const res = await axios.get(
-          "https://elderbackend-production.up.railway.app/elder/requests",
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        setRequests(res.data);
-      } catch (err) {
-        console.log("ELDER DASHBOARD ERROR:", err.response?.data || err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchRequests();
+  const fetchRequests = useCallback(async () => {
+    try {
+      const res = await api.get("/elder/requests");
+      setRequests(res.data);
+    } catch (err) {
+      console.error("ELDER DASHBOARD ERROR:", err.response?.data || err);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   }, []);
 
-  const recent = requests
+  useEffect(() => {
+    fetchRequests();
+  }, [fetchRequests]);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchRequests();
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={styles.loadingText}>Loading Dashboard...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const pendingCount = requests.filter((r) => r.status?.toLowerCase() === "pending").length;
+  const completedCount = requests.filter((r) => r.status?.toLowerCase() === "completed").length;
+  const assignedCount = requests.filter((r) => r.status?.toLowerCase() === "assigned").length;
+
+  const recent = [...requests]
     .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
-    .slice(0, 3);
+    .slice(0, 5);
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.layout}>
+      <View style={[styles.layout, { flexDirection: responsive.showSidebar ? "row" : "column" }]}>
+        <ElderSidebar navigation={navigation} activeKey="ElderDashboard" />
 
-        {/* Sidebar (Web Only) */}
-        {Platform.OS === "web" && (
-          <View style={styles.sidebar}>
-            <View style={styles.profileSection}>
-              <View style={styles.avatar} />
-              <Text style={styles.profileName}>
-                {user?.name}
-              </Text>
-              <Text style={styles.profileRole}>
-                Elder
-              </Text>
-            </View>
-
-            <SidebarItem label="Dashboard" active />
-            <SidebarItem
-              label="My Requests"
-              onPress={() => navigation.navigate("MyRequests")}
-            />
-            
-          </View>
-        )}
-
-        {/* Main Content */}
-        <ScrollView style={styles.content}>
+        <ScrollView
+          style={styles.content}
+          contentContainerStyle={[styles.contentContainer, { padding: responsive.contentPadding }]}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+          }
+        >
+          {/* Header */}
           <Text style={styles.heading}>
-            Welcome back, {user?.name}
+            Welcome back, {user?.name || "Elder"}
+          </Text>
+          <Text style={styles.subheading}>
+            Manage your requests and health information
           </Text>
 
-          <View style={styles.buttonRow}>
-            <TouchableOpacity
-              style={styles.primaryButton}
-              onPress={() => navigation.navigate("CreateRequest", { type: "medicine" })}
-            >
-              <Text style={styles.primaryText}>
-                Request Medicine Delivery
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.primaryButton}
-              onPress={() => navigation.navigate("CreateRequest", { type: "volunteer" })}
-            >
-              <Text style={styles.primaryText}>
-                Request Volunteer Support
-              </Text>
-            </TouchableOpacity>
+          {/* Stat Cards */}
+          <View style={[styles.statsRow, { flexDirection: responsive.isMobile ? "column" : "row", flexWrap: responsive.isTablet ? "wrap" : "nowrap" }]}>
+            <StatCard
+              title="Total Requests"
+              value={requests.length}
+              color={colors.primary}
+            />
+            <StatCard
+              title="Pending"
+              value={pendingCount}
+              color={colors.warning}
+            />
+            <StatCard
+              title="Assigned"
+              value={assignedCount}
+              color={colors.primary}
+            />
+            <StatCard
+              title="Completed"
+              value={completedCount}
+              color={colors.success}
+            />
           </View>
 
-          {/* Upload Medical Report */}
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>
-              Upload your latest medical report
-            </Text>
-            <Text style={styles.cardDesc}>
-              Keep your health information up-to-date.
-            </Text>
+          {/* Quick Actions */}
+          <SectionHeader title="Quick Actions" icon="⚡" />
+          <View style={[styles.actionsRow, { flexDirection: responsive.isMobile ? "column" : "row", flexWrap: "wrap" }]}>
+            <TouchableOpacity
+              style={styles.actionCard}
+              onPress={() => navigation.navigate("CreateRequest", { type: "medicine" })}
+            >
+              <Text style={styles.actionIcon}>💊</Text>
+              <Text style={styles.actionTitle}>Medicine Request</Text>
+              <Text style={styles.actionDesc}>Request medicine drop-off</Text>
+            </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.uploadButton}
-              onPress={() => navigation.navigate("UploadMedicalReport")}
+              style={styles.actionCard}
+              onPress={() => navigation.navigate("DeliveryOrderScreen")}
             >
-              <Text style={styles.uploadText}>Upload</Text>
+              <Text style={styles.actionIcon}>🚚</Text>
+              <Text style={styles.actionTitle}>Order Delivery</Text>
+              <Text style={styles.actionDesc}>Medicine & grocery delivery</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.actionCard}
+              onPress={() => navigation.navigate("DeliveryHistoryScreen")}
+            >
+              <Text style={styles.actionIcon}>📍</Text>
+              <Text style={styles.actionTitle}>Track Deliveries</Text>
+              <Text style={styles.actionDesc}>Track your active orders</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.actionCard}
+              onPress={() => navigation.navigate("MyRequests")}
+            >
+              <Text style={styles.actionIcon}>📋</Text>
+              <Text style={styles.actionTitle}>My Requests</Text>
+              <Text style={styles.actionDesc}>View all your requests</Text>
             </TouchableOpacity>
           </View>
 
           {/* Recent Activity */}
-          <Text style={styles.sectionTitle}>
-            Recent Activity
-          </Text>
-
-          {loading ? (
-            <ActivityIndicator color={colors.primary} />
-          ) : recent.length === 0 ? (
-            <Text style={{ color: colors.muted }}>
-              No recent activity.
-            </Text>
-          ) : (
-            recent.map((item) => (
-              <View key={item._id} style={styles.activityCard}>
-                <Text style={styles.activityTitle}>
-                  {item.type?.toUpperCase()}
-                </Text>
-                <Text style={styles.activityStatus}>
-                  {item.status}
-                </Text>
+          <SectionHeader title="Recent Activity" icon="🕐" />
+          <View style={styles.sectionCard}>
+            {recent.length > 0 ? (
+              <Table
+                headers={["Type", "Description", "Status", "Date"]}
+                rows={recent.map((r) => ({
+                  cells: [
+                    r.type?.charAt(0).toUpperCase() + r.type?.slice(1) || "—",
+                    r.description?.substring(0, 40) + (r.description?.length > 40 ? "…" : "") || "—",
+                    r.status?.charAt(0).toUpperCase() + r.status?.slice(1) || "—",
+                    new Date(r.updatedAt).toLocaleDateString(),
+                  ],
+                  statusColor:
+                    r.status?.toLowerCase() === "completed"
+                      ? colors.success
+                      : r.status?.toLowerCase() === "assigned"
+                      ? colors.primary
+                      : colors.warning,
+                }))}
+              />
+            ) : (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyIcon}>📭</Text>
+                <Text style={styles.emptyText}>No requests yet. Create one to get started!</Text>
               </View>
-            ))
-          )}
-        </ScrollView>
-      </View>
+            )}
+            <TouchableOpacity
+              style={styles.viewAllButton}
+              onPress={() => navigation.navigate("MyRequests")}
+            >
+              <Text style={styles.viewAllText}>View All Requests →</Text>
+            </TouchableOpacity>
+          </View>
 
-      {/* Chatbot Floating Button */}
-      <TouchableOpacity
-        style={styles.chatButton}
-        onPress={() => navigation.navigate("Chatbot")}
-      >
-        <Text style={{ fontSize: 20 }}>💬</Text>
-      </TouchableOpacity>
+          {/* Bottom padding */}
+          <View style={{ height: responsive.showBottomBar ? 80 : 40 }} />
+        </ScrollView>
+
+        <ElderMobileBottomBar navigation={navigation} activeKey="ElderDashboard" />
+      </View>
     </SafeAreaView>
   );
 }
 
-const SidebarItem = ({ label, active, onPress }) => (
-  <TouchableOpacity
-    style={[
-      styles.sidebarItem,
-      active && { backgroundColor: colors.card },
-    ]}
-    onPress={onPress}
-  >
-    <Text style={styles.sidebarText}>{label}</Text>
-  </TouchableOpacity>
+/* ── Sub Components ── */
+
+const SectionHeader = ({ title, icon }) => (
+  <View style={styles.sectionHeader}>
+    <Text style={styles.sectionIcon}>{icon}</Text>
+    <Text style={styles.sectionTitle}>{title}</Text>
+  </View>
 );
 
+const StatCard = ({ title, value, color }) => (
+  <View style={[styles.statCard, { borderTopColor: color, borderTopWidth: 3 }]}>
+    <Text style={styles.statTitle}>{title}</Text>
+    <Text style={styles.statValue}>{typeof value === "number" ? value.toLocaleString() : value}</Text>
+  </View>
+);
+
+const Table = ({ headers, rows }) => (
+  <View style={styles.table}>
+    <View style={styles.tableHeader}>
+      {headers.map((h, i) => (
+        <Text key={i} style={styles.tableHeaderText}>
+          {h}
+        </Text>
+      ))}
+    </View>
+    {rows.map((row, i) => (
+      <View key={i} style={[styles.tableRow, i % 2 === 0 && styles.tableRowAlt]}>
+        {row.cells.map((cell, j) => (
+          <View key={j} style={styles.cell}>
+            {j === 2 && row.statusColor ? (
+              <View style={styles.statusCellContainer}>
+                <View style={[styles.statusIndicator, { backgroundColor: row.statusColor }]} />
+                <Text style={[styles.cellText, { color: row.statusColor }]}>{cell}</Text>
+              </View>
+            ) : (
+              <Text style={styles.cellText}>{cell}</Text>
+            )}
+          </View>
+        ))}
+      </View>
+    ))}
+  </View>
+);
+
+/* ── Styles ── */
+
 const styles = StyleSheet.create({
-  container: {
+  container: { flex: 1, backgroundColor: colors.bg },
+  loadingContainer: {
     flex: 1,
-    backgroundColor: colors.bg,
-  },
-
-  layout: {
-    flexDirection: Platform.OS === "web" ? "row" : "column",
-    flex: 1,
-  },
-
-  sidebar: {
-    width: 250,
-    backgroundColor: colors.sidebar,
-    padding: 20,
-  },
-
-  profileSection: {
+    justifyContent: "center",
     alignItems: "center",
-    marginBottom: 30,
+    gap: 16,
   },
+  loadingText: { color: colors.muted, fontSize: 16 },
 
-  avatar: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    backgroundColor: colors.border,
-    marginBottom: 10,
-  },
+  layout: { flex: 1 },
 
-  profileName: {
-    color: colors.text,
-    fontWeight: "bold",
-    fontSize: 16,
-  },
-
-  profileRole: {
-    color: colors.muted,
-    fontSize: 13,
-  },
-
-  sidebarItem: {
-    padding: 12,
-    borderRadius: 10,
-    marginBottom: 8,
-  },
-
-  sidebarText: {
-    color: colors.text,
-  },
-
-  content: {
-    flex: 1,
-    padding: 30,
-  },
-
+  // Content
+  content: { flex: 1 },
+  contentContainer: {},
   heading: {
     fontSize: 28,
-    fontWeight: "bold",
+    fontWeight: "800",
     color: colors.text,
-    marginBottom: 30,
+    letterSpacing: -0.5,
   },
+  subheading: { color: colors.muted, marginBottom: 28, marginTop: 6, fontSize: 15 },
 
-  buttonRow: {
-    flexDirection: Platform.OS === "web" ? "row" : "column",
-    gap: 20,
-    marginBottom: 30,
+  // Stat cards
+  statsRow: {
+    gap: 16,
+    marginBottom: 32,
   },
-
-  primaryButton: {
+  statCard: {
     flex: 1,
-    backgroundColor: colors.primary,
-    paddingVertical: 18,
-    borderRadius: 14,
-    alignItems: "center",
-  },
-
-  primaryText: {
-    color: "#FFF",
-    fontWeight: "600",
-  },
-
-  card: {
+    minWidth: 140,
     backgroundColor: colors.card,
-    padding: 20,
-    borderRadius: 16,
+    padding: 22,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: colors.border,
-    marginBottom: 30,
   },
-
-  cardTitle: {
+  statTitle: { color: colors.muted, fontSize: 13, fontWeight: "500", marginBottom: 10 },
+  statValue: {
+    fontSize: 32,
+    fontWeight: "800",
     color: colors.text,
-    fontSize: 18,
-    fontWeight: "600",
-    marginBottom: 8,
   },
 
-  cardDesc: {
-    color: colors.muted,
-    marginBottom: 15,
-  },
-
-  uploadButton: {
-    backgroundColor: colors.primary,
-    paddingVertical: 12,
-    borderRadius: 10,
+  // Section header
+  sectionHeader: {
+    flexDirection: "row",
     alignItems: "center",
+    gap: 10,
+    marginBottom: 16,
+    marginTop: 12,
   },
-
-  uploadText: {
-    color: "#FFF",
-    fontWeight: "600",
-  },
-
+  sectionIcon: { fontSize: 22 },
   sectionTitle: {
     fontSize: 20,
-    fontWeight: "600",
+    fontWeight: "700",
     color: colors.text,
-    marginBottom: 15,
   },
 
-  activityCard: {
+  // Action cards
+  actionsRow: {
+    gap: 16,
+    marginBottom: 32,
+  },
+  actionCard: {
+    flex: 1,
     backgroundColor: colors.card,
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
+    padding: 24,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: colors.border,
-  },
-
-  activityTitle: {
-    color: colors.primary,
-    fontWeight: "bold",
-  },
-
-  activityStatus: {
-    color: colors.muted,
-    marginTop: 4,
-  },
-
-  chatButton: {
-    position: "absolute",
-    bottom: 30,
-    right: 30,
-    backgroundColor: colors.primary,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
     alignItems: "center",
-    justifyContent: "center",
-    elevation: 10,
+    gap: 8,
   },
+  actionIcon: { fontSize: 32 },
+  actionTitle: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  actionDesc: {
+    color: colors.muted,
+    fontSize: 13,
+    textAlign: "center",
+  },
+
+  // Section card
+  sectionCard: {
+    backgroundColor: colors.card,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 20,
+    marginBottom: 24,
+    overflow: "hidden",
+  },
+
+  // Table
+  table: {
+    borderRadius: 10,
+    overflow: "hidden",
+  },
+  tableHeader: {
+    flexDirection: "row",
+    backgroundColor: `${colors.primary}15`,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderColor: colors.border,
+  },
+  tableHeaderText: {
+    flex: 1,
+    color: colors.primary,
+    fontWeight: "700",
+    fontSize: 13,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  tableRow: {
+    flexDirection: "row",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderColor: `${colors.border}60`,
+  },
+  tableRowAlt: { backgroundColor: `${colors.bg}40` },
+  cell: { flex: 1, justifyContent: "center" },
+  cellText: { color: colors.text, fontSize: 14 },
+  statusCellContainer: { flexDirection: "row", alignItems: "center", gap: 6 },
+  statusIndicator: { width: 8, height: 8, borderRadius: 4 },
+
+  // View all button
+  viewAllButton: {
+    marginTop: 16,
+    alignItems: "center",
+    paddingVertical: 12,
+    backgroundColor: `${colors.primary}12`,
+    borderRadius: 8,
+  },
+  viewAllText: { color: colors.primary, fontWeight: "600", fontSize: 14 },
+
+  // Empty state
+  emptyState: {
+    alignItems: "center",
+    paddingVertical: 32,
+    gap: 8,
+  },
+  emptyIcon: { fontSize: 36 },
+  emptyText: { color: colors.muted, fontSize: 15 },
 });

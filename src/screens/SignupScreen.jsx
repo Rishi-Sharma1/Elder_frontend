@@ -57,7 +57,7 @@ export default function SignupScreen({ route, navigation }) {
       const token = await res.user.getIdToken(true);
 
       await axios.post(
-        "https://elderbackend-production.up.railway.app/auth/register",
+        "http://localhost:5000/auth/register",
         { token, role, name }
       );
 

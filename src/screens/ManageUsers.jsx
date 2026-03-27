@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import { auth } from "../config/firebase";
 
-const BASE_URL = "https://elderbackend-production.up.railway.app";
+const BASE_URL = "http://10.0.2.2:5000";
 
 export default function ManageUsers() {
   const [users, setUsers] = useState([]);
